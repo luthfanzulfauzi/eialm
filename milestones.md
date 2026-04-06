@@ -147,7 +147,7 @@ Support datacenter, warehouse, rack, and rack-layout workflows for real infrastr
 
 ---
 
-## Milestone 4: Network Management (70% Complete)
+## Milestone 4: Network Management (90% Complete)
 
 **Goal**
 
@@ -160,9 +160,10 @@ Manage public and private address inventory, assignment, reservation, and operat
 - [x] Public IP status management exists.
 - [x] Asset-IP assignment and unassignment exist.
 - [x] Private IP listing and search exist.
-- [ ] Private IP creation/manage flow is incomplete.
-- [ ] Private networking rules and operator workflow depth remain limited.
-- [ ] Utilization and assignment summaries can be improved.
+- [x] Private IP creation, bulk subnet registration, assignment, status updates, and deletion flows now exist in the UI/API.
+- [x] Private networking validation now enforces RFC1918 space, CIDR boundary checks, and bounded bulk subnet registration.
+- [x] Utilization and assignment summaries now include subnet grouping and status rollups for private inventory.
+- [ ] Authenticated browser-level validation should still be completed against real operator workflows in deployed mode.
 
 **Deliverables**
 
@@ -170,14 +171,14 @@ Manage public and private address inventory, assignment, reservation, and operat
 - [x] Public IP grid/status management
 - [x] IP assignment/unassignment flows
 - [x] Private IP inventory listing
-- [ ] Private IP registration UI and endpoint coverage
-- [ ] Stronger subnet/range constraints for private networking
-- [ ] Improved IP utilization summaries and assignment views
+- [x] Private IP registration UI and endpoint coverage
+- [x] Stronger subnet/range constraints for private networking
+- [x] Improved IP utilization summaries and assignment views
 
 **Exit Criteria**
 
-- Operators can fully manage both private and public IP inventory from the product UI.
-- Address-state transitions are clear, validated, and operationally reliable.
+- [x] Operators can fully manage both private and public IP inventory from the product UI.
+- [ ] Address-state transitions are clear, validated, and operationally reliable across authenticated end-to-end deployment testing.
 
 ---
 
