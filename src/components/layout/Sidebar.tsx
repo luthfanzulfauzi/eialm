@@ -4,7 +4,7 @@ import { useSidebarStore } from "@/store/useSidebarStore";
 import { cn } from "@/lib/utils";
 import { 
   LayoutDashboard, Server, Shield, Key, Settings, 
-  ChevronLeft, LogOut, Users, ChevronDown, Database, Warehouse, Box
+  ChevronLeft, LogOut, Users, ChevronDown, Database, Warehouse, Box, Globe
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -39,6 +39,7 @@ export const Sidebar = () => {
     const activeMenus: string[] = [];
     if (pathname.includes("/assets")) activeMenus.push("Hardware");
     if (pathname.includes("/datacenters/")) activeMenus.push("Datacenters");
+    if (pathname.includes("/network/")) activeMenus.push("Networking");
     setOpenSubMenus(prev => Array.from(new Set([...prev, ...activeMenus])));
   }, [pathname]);
 
@@ -73,7 +74,24 @@ export const Sidebar = () => {
         },
       ]
     },
-    { name: "Networking", icon: Shield, path: "/network/public", roles: ["ADMIN", "OPERATOR", "VIEWER"] },
+    {
+      name: "Networking",
+      icon: Shield,
+      path: "/network/public",
+      roles: ["ADMIN", "OPERATOR", "VIEWER"],
+      subItems: [
+        {
+          name: "Public IP Management",
+          path: "/network/public",
+          icon: Globe,
+        },
+        {
+          name: "Private IP Management",
+          path: "/network/private",
+          icon: Shield,
+        },
+      ],
+    },
     { name: "Licenses", icon: Key, path: "/licenses", roles: ["ADMIN", "OPERATOR", "VIEWER"] },
     { name: "Users", icon: Users, path: "/users", roles: ["ADMIN"] },
     { name: "Settings", icon: Settings, path: "/settings", roles: ["ADMIN", "OPERATOR"] },
@@ -104,7 +122,9 @@ export const Sidebar = () => {
       <nav className="flex-1 px-4 space-y-1 overflow-y-auto custom-scrollbar">
         {filteredItems.map((item) => {
           const isExpanded = openSubMenus.includes(item.name);
-          const isParentActive = pathname === item.path;
+          const isParentActive =
+            pathname === item.path ||
+            item.subItems?.some((sub) => pathname === sub.path || pathname.startsWith(`${sub.path}/`));
 
           return (
             <div key={item.name} className="space-y-1">
