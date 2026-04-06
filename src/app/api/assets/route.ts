@@ -13,6 +13,11 @@ const formatAssetError = (error: unknown) => {
 };
 
 export async function GET(req: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return new NextResponse("Unauthorized", { status: 401 });
+  }
+
   const { searchParams } = new URL(req.url);
   const q = searchParams.get("q") || undefined;
   const cat = searchParams.get("cat") || undefined;

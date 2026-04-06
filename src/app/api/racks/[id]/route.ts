@@ -93,6 +93,11 @@ export async function GET(
   req: Request,
   { params }: { params: { id: string } }
 ) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return new NextResponse("Unauthorized", { status: 401 });
+  }
+
   try {
     const rack = await prisma.rack.findUnique({
       where: { id: params.id },

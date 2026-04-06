@@ -10,6 +10,11 @@ const CreateRangeSchema = z.object({
 });
 
 export async function GET() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return new NextResponse("Unauthorized", { status: 401 });
+  }
+
   try {
     const ranges = await PublicIpService.listRanges();
     return NextResponse.json(ranges);
@@ -55,4 +60,3 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Failed to create range" }, { status: 400 });
   }
 }
-

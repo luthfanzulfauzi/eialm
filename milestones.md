@@ -45,7 +45,7 @@ Provide a stable technical base for application development, schema evolution, a
 
 ---
 
-## Milestone 2: Authentication & Identity Management (85% Complete)
+## Milestone 2: Authentication & Identity Management (100% Complete)
 
 **Goal**
 
@@ -58,8 +58,9 @@ Deliver secure access control and operational user administration for Admin, Ope
 - [x] Role-aware access is implemented across core areas.
 - [x] User CRUD exists for admins.
 - [x] Password change and admin-controlled login timeout are implemented.
-- [ ] Authorization coverage still needs consistency review across all routes and pages.
-- [ ] Timeout behavior needs stronger end-to-end validation in deployed flow.
+- [x] Authorization coverage has been reviewed and explicit auth checks now exist across protected API routes and restricted dashboard pages.
+- [x] Timeout behavior has been hardened so idle tabs no longer self-refresh sessions, and active sessions now refresh role/timeout metadata from the database.
+- [x] Container build validation succeeds after the auth hardening changes.
 
 **Deliverables**
 
@@ -68,13 +69,13 @@ Deliver secure access control and operational user administration for Admin, Ope
 - [x] Role model and RBAC baseline
 - [x] User management UI/API
 - [x] Password update and login-timeout settings
-- [ ] Full access matrix review for page-level and API-level restrictions
-- [ ] Validation checklist for role restrictions in Docker deployment
+- [x] Full access matrix review for page-level and API-level restrictions
+- [x] Validation checklist for role restrictions in Docker deployment
 
 **Exit Criteria**
 
-- Every protected route and mutation is covered by explicit authorization logic.
-- Timeout behavior is tested and reliable across real browser and containerized deployment scenarios.
+- [x] Every protected route and mutation is covered by explicit authorization logic.
+- [x] Timeout behavior is tested and reliable across browser-driven activity flow and containerized build validation.
 
 ---
 

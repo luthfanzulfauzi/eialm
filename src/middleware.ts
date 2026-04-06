@@ -11,10 +11,16 @@ export default withAuth(
      * Strictly limits User Management and Global Settings to Admin role.
      */
     const adminOnlyPaths = ["/users"];
+    const operatorOrAdminPaths = ["/settings"];
     const isAdminPath = adminOnlyPaths.some((p) => pathname.startsWith(p));
+    const isOperatorOrAdminPath = operatorOrAdminPaths.some((p) => pathname.startsWith(p));
 
     if (isAdminPath && token?.role !== "ADMIN") {
       // Redirect unauthorized users to the dashboard home
+      return NextResponse.redirect(new URL("/", req.url));
+    }
+
+    if (isOperatorOrAdminPath && token?.role !== "ADMIN" && token?.role !== "OPERATOR") {
       return NextResponse.redirect(new URL("/", req.url));
     }
 
@@ -72,9 +78,9 @@ export default withAuth(
   },
   {
     callbacks: {
-      // authorized: returns true if the user is authenticated. 
-      // If false, the user is redirected to the sign-in page.
-      authorized: ({ token }: any) => !!token,
+      authorized: ({ token }: any) =>
+        typeof token?.id === "string" &&
+        (token?.role === "ADMIN" || token?.role === "OPERATOR" || token?.role === "VIEWER"),
     },
     pages: {
       signIn: "/login", // Redirect to our custom login page

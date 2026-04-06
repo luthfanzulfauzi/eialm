@@ -41,8 +41,34 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }: any) {
       if (user) {
         token.id = user.id;
+        token.name = user.name;
+        token.email = user.email;
         token.role = user.role;
         token.loginTimeout = (user as any).loginTimeout;
+        return token;
+      }
+
+      if (typeof token.id === "string") {
+        const currentUser = await prisma.user.findUnique({
+          where: { id: token.id },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            loginTimeout: true,
+          },
+        });
+
+        if (!currentUser) {
+          return {};
+        }
+
+        token.id = currentUser.id;
+        token.name = currentUser.name;
+        token.email = currentUser.email;
+        token.role = currentUser.role;
+        token.loginTimeout = currentUser.loginTimeout;
       }
       return token;
     },
