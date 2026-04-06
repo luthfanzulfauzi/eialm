@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  html {
+    /* Critical: Ensures background color is set at the root level */
+    background-color: #0f1218;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-[#0f1218] text-slate-200 antialiased;
+    min-height: 100vh;
+  }
+}
+
+/* Custom scrollbar for the modern sidebar/table look */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 10px;
+}

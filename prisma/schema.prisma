@@ -1,0 +1,189 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  OPERATOR
+  VIEWER
+}
+
+enum AssetStatus {
+  PLAN          // For items purchased but not yet arrived
+  PURCHASED     
+  INSTALLING    // Currently being racked/cabled
+  ACTIVE
+  MAINTENANCE
+  BROKEN
+  DECOMMISSIONED
+}
+
+enum LocationType {
+  DATACENTER
+  WAREHOUSE
+}
+
+enum RackFace {
+  FRONT
+  BACK
+  BOTH
+}
+
+enum IPStatus {
+  AVAILABLE
+  RESERVED
+  ASSIGNED
+  BLOCKED
+}
+
+model User {
+  id            String     @id @default(cuid())
+  email         String     @unique
+  password      String     // Hashed
+  name          String
+  role          Role       @default(VIEWER)
+  image         String?    // Profile picture path
+  lastLogin     DateTime?
+  loginTimeout  Int        @default(30) // Minutes, only manageable by Admin
+  
+  auditLogs     AuditLog[]
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+}
+
+model Location {
+  id        String       @id @default(cuid())
+  name      String       @unique
+  type      LocationType @default(DATACENTER)
+  address   String?
+  
+  racks     Rack[]
+  assets    Asset[]      // Assets directly in a warehouse/DC (not in a rack)
+  createdAt DateTime     @default(now())
+}
+
+model Rack {
+  id          String   @id @default(cuid())
+  name        String   // e.g., "Rack-01"
+  locationId  String
+  location    Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  
+  totalUnits  Int      @default(42)
+  assets      Asset[]
+  createdAt   DateTime @default(now())
+
+  @@unique([name, locationId])
+}
+
+model Asset {
+  id           String      @id @default(cuid())
+  name         String
+  serialNumber String      @unique
+  category     String      // Server, Network, Cable, etc.
+  status       AssetStatus @default(PLAN)
+
+  serverType         String?
+  cpuType            String?
+  cpuSocketNumber    Int?
+  cpuCore            Int?
+  memoryType         String?
+  memorySize         Int?
+  memorySlotUsed     Int?
+  memorySpeed        Int?
+  diskOsType         String?
+  diskOsNumber       Int?
+  diskOsSize         Int?
+  diskDataType       String?
+  diskDataNumber     Int?
+  diskDataSize       Int?
+  
+  // Relations
+  locationId   String?     // Optional for small components, usually required for servers
+  location     Location?   @relation(fields: [locationId], references: [id])
+  
+  // Rack is optional at the DB level to allow "Cables" or "Mobile Assets"
+  // But we will enforce this in the Service/Validation layer for Servers/Network devices.
+  rackId       String?
+  rack         Rack?       @relation(fields: [rackId], references: [id])
+
+  rackUnitStart Int?
+  rackUnitSize  Int?
+  rackFace      RackFace?
+  
+  ips          IPAddress[]
+  licenses     License[]
+  auditLogs    AuditLog[]
+  
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([rackId, rackFace, rackUnitStart])
+}
+
+model PublicIPRange {
+  id           String      @id @default(cuid())
+  network      String
+  prefix       Int
+  cidr         String      @unique
+  startInt     BigInt
+  endInt       BigInt
+  startAddress String
+  endAddress   String
+  size         Int
+
+  ips          IPAddress[]
+
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@unique([network, prefix])
+  @@index([startInt])
+  @@index([endInt])
+}
+
+model IPAddress {
+  id        String   @id @default(cuid())
+  address   String   @unique
+  isPublic  Boolean  @default(false)
+  status    IPStatus @default(AVAILABLE)
+  publicRangeId String?
+  publicRange   PublicIPRange? @relation(fields: [publicRangeId], references: [id], onDelete: SetNull)
+  assetId   String?
+  asset     Asset?   @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model License {
+  id          String    @id @default(cuid())
+  name        String
+  key         String    @unique
+  expiryDate  DateTime?
+  isExpired   Boolean   @default(false)
+  
+  assetId     String?
+  asset       Asset?    @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  action    String   // e.g., "CREATE", "UPDATE", "MOVE", "DELETE"
+  details   String   // JSON string of changes
+  
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  
+  assetId   String?
+  asset     Asset?   @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+}
