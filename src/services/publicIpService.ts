@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { cidrToIPv4Range, formatBigIntToIPv4, parseIPv4ToBigInt } from "@/lib/ip";
+import { cidrToIPv4Range, compareIPv4Addresses, formatBigIntToIPv4, parseIPv4ToBigInt } from "@/lib/ip";
 import { IPAssignmentTargetType, IPStatus } from "@prisma/client";
 
 const MAX_GENERATED_IPS = BigInt(4096);
@@ -128,15 +128,16 @@ export const PublicIpService = {
   },
 
   async listRangeIps(rangeId: string) {
-    return await prisma.iPAddress.findMany({
+    const ips = await prisma.iPAddress.findMany({
       where: { isPublic: true, publicRangeId: rangeId },
       include: {
         asset: {
           select: { id: true, name: true, serialNumber: true, category: true },
         },
       },
-      orderBy: { address: "asc" },
     });
+
+    return ips.sort((a, b) => compareIPv4Addresses(a.address, b.address));
   },
 
   async updateIpStatus(

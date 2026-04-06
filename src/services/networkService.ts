@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import {
+  compareIPv4Addresses,
   expandIPv4CidrHosts,
   getPrivateRangeLabel,
   isPrivateIPv4,
@@ -133,7 +134,7 @@ async function buildAssignmentPayload(input: IpStateInput) {
 export const NetworkService = {
   async getIPInventory(type: "public" | "private") {
     const isPublic = type === "public";
-    return await prisma.iPAddress.findMany({
+    const items = await prisma.iPAddress.findMany({
       where: { isPublic },
       include: {
         asset: {
@@ -145,8 +146,9 @@ export const NetworkService = {
           },
         },
       },
-      orderBy: { address: "asc" },
     });
+
+    return items.sort((a, b) => compareIPv4Addresses(a.address, b.address));
   },
 
   async getPrivateInventory() {
@@ -163,7 +165,6 @@ export const NetworkService = {
             },
           },
         },
-        orderBy: { address: "asc" },
       }),
       prisma.asset.findMany({
         select: {
@@ -196,7 +197,9 @@ export const NetworkService = {
       }
     >();
 
-    for (const ip of items) {
+    const sortedItems = [...items].sort((a, b) => compareIPv4Addresses(a.address, b.address));
+
+    for (const ip of sortedItems) {
       const normalizedStatus = ip.status;
       if (normalizedStatus === IPStatus.AVAILABLE) summary.available += 1;
       if (normalizedStatus === IPStatus.RESERVED) summary.reserved += 1;
@@ -223,11 +226,11 @@ export const NetworkService = {
     summary.subnetCount = subnets.length;
 
     return {
-      items,
+      items: sortedItems,
       summary,
       subnets,
       privateRanges: Array.from(
-        new Set(items.map((ip) => getPrivateRangeLabel(ip.address)).filter(Boolean))
+        new Set(sortedItems.map((ip) => getPrivateRangeLabel(ip.address)).filter(Boolean))
       ),
       assignableAssets: assets,
     };
@@ -329,10 +332,9 @@ export const NetworkService = {
 
     const created = await prisma.iPAddress.findMany({
       where: { address: { in: uniqueAddresses } },
-      orderBy: { address: "asc" },
     });
 
-    return { created };
+    return { created: created.sort((a, b) => compareIPv4Addresses(a.address, b.address)) };
   },
 
   async updateIPAssignment(ipId: string, assetId: string | null) {

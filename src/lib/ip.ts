@@ -58,6 +58,18 @@ export function formatBigIntToIPv4(value: bigint): string {
   return `${a}.${b}.${c}.${d}`;
 }
 
+export function compareIPv4Addresses(a: string, b: string): number {
+  const aValue = parseIPv4ToBigInt(a);
+  const bValue = parseIPv4ToBigInt(b);
+
+  if (aValue === null && bValue === null) return a.localeCompare(b);
+  if (aValue === null) return 1;
+  if (bValue === null) return -1;
+  if (aValue < bValue) return -1;
+  if (aValue > bValue) return 1;
+  return 0;
+}
+
 export function cidrToIPv4Range(cidrNetwork: string, prefix: number) {
   if (!Number.isInteger(prefix) || prefix < 0 || prefix > 32) return null;
   const ip = parseIPv4ToBigInt(cidrNetwork);
