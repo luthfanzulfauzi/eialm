@@ -42,7 +42,7 @@ export default async function DashboardPage() {
   // 1. Fetch real-time metrics from the database
   const [totalAssets, assignedPublicIPs, totalPublicIPs, brokenAssets, totalLicenses] = await Promise.all([
     prisma.asset.count(),
-    prisma.iPAddress.count({ where: { isPublic: true, assetId: { not: null } } }),
+    prisma.iPAddress.count({ where: { isPublic: true, status: "ASSIGNED" } }),
     prisma.iPAddress.count({ where: { isPublic: true } }),
     prisma.asset.count({ where: { status: 'BROKEN' } }),
     prisma.license.count(), // Counting total managed licenses

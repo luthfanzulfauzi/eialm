@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { NetworkService } from "@/services/networkService";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { IPStatus } from "@prisma/client";
+import { IPAssignmentTargetType, IPStatus } from "@prisma/client";
 import { z } from "zod";
 
 const CreatePrivateIpSchema = z
@@ -12,6 +12,8 @@ const CreatePrivateIpSchema = z
     address: z.string().min(1),
     prefix: z.number().int().min(0).max(32).optional(),
     assetId: z.string().min(1).optional().nullable(),
+    assignmentTargetType: z.nativeEnum(IPAssignmentTargetType).optional().nullable(),
+    assignmentTargetLabel: z.string().optional().nullable(),
     status: z.nativeEnum(IPStatus).optional(),
   })
   .superRefine((value, ctx) => {
@@ -28,6 +30,8 @@ const AssignmentSchema = z.object({
   action: z.literal("assign"),
   ipId: z.string().min(1),
   assetId: z.string().optional().nullable(),
+  assignmentTargetType: z.nativeEnum(IPAssignmentTargetType).optional().nullable(),
+  assignmentTargetLabel: z.string().optional().nullable(),
 });
 
 const LegacyAssignmentSchema = z.object({
@@ -39,6 +43,9 @@ const UpdateStatusSchema = z.object({
   action: z.literal("updateStatus"),
   ipId: z.string().min(1),
   status: z.nativeEnum(IPStatus),
+  assetId: z.string().optional().nullable(),
+  assignmentTargetType: z.nativeEnum(IPAssignmentTargetType).optional().nullable(),
+  assignmentTargetLabel: z.string().optional().nullable(),
 });
 
 const DeletePrivateIpSchema = z.object({
@@ -104,16 +111,22 @@ function formatNetworkError(error: any) {
     return NextResponse.json({ error: "Invalid IP status transition" }, { status: 400 });
   }
   if (error?.code === "ASSIGNED") {
-    return NextResponse.json(
-      { error: "This IP is assigned and must be unassigned first" },
-      { status: 409 }
-    );
+    return NextResponse.json({ error: "Assigned IPs must be released before deletion." }, { status: 409 });
   }
   if (error?.code === "NOT_PRIVATE") {
     return NextResponse.json({ error: "This action only supports private IP inventory" }, { status: 400 });
   }
   if (error?.code === "NOT_FOUND") {
     return NextResponse.json({ error: "IP address not found" }, { status: 404 });
+  }
+  if (error?.code === "ASSET_REQUIRED") {
+    return NextResponse.json({ error: "Hardware target requires a hardware asset." }, { status: 400 });
+  }
+  if (error?.code === "TARGET_REQUIRED") {
+    return NextResponse.json({ error: "Assigned and reserved IPs require a target type." }, { status: 400 });
+  }
+  if (error?.code === "TARGET_LABEL_REQUIRED") {
+    return NextResponse.json({ error: "Assigned and reserved VM/other targets require details." }, { status: 400 });
   }
 
   return NextResponse.json({ error: "Invalid network request" }, { status: 400 });
@@ -205,7 +218,7 @@ export async function PATCH(req: Request) {
       return NextResponse.json(data);
     }
 
-    const data = await NetworkService.updatePrivateIpStatus(parsed.data.ipId, parsed.data.status);
+    const data = await NetworkService.updatePrivateIpStatus(parsed.data.ipId, parsed.data);
     return NextResponse.json(data);
   } catch (error) {
     return formatNetworkError(error);

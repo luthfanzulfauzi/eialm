@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { cidrToIPv4Range, formatBigIntToIPv4, parseIPv4ToBigInt } from "@/lib/ip";
-import { IPStatus } from "@prisma/client";
+import { IPAssignmentTargetType, IPStatus } from "@prisma/client";
 
 const MAX_GENERATED_IPS = BigInt(4096);
 
@@ -139,10 +139,18 @@ export const PublicIpService = {
     });
   },
 
-  async updateIpStatus(ipId: string, status: IPStatus) {
+  async updateIpStatus(
+    ipId: string,
+    input: {
+      status: IPStatus;
+      assetId?: string | null;
+      assignmentTargetType?: IPAssignmentTargetType | null;
+      assignmentTargetLabel?: string | null;
+    }
+  ) {
     const ip = await prisma.iPAddress.findUnique({
       where: { id: ipId },
-      select: { id: true, assetId: true, isPublic: true },
+      select: { id: true, isPublic: true },
     });
     if (!ip) {
       const err: any = new Error("Not found");
@@ -154,20 +162,86 @@ export const PublicIpService = {
       err.code = "NOT_PUBLIC";
       throw err;
     }
-    if (ip.assetId) {
-      const err: any = new Error("Assigned");
-      err.code = "ASSIGNED";
+    const assetId =
+      typeof input.assetId === "string" && input.assetId.trim().length > 0 ? input.assetId : null;
+    const targetType = input.assignmentTargetType ?? null;
+    const targetLabel =
+      typeof input.assignmentTargetLabel === "string" && input.assignmentTargetLabel.trim().length > 0
+        ? input.assignmentTargetLabel.trim()
+        : null;
+
+    if (input.status === IPStatus.AVAILABLE) {
+      return await prisma.iPAddress.update({
+        where: { id: ipId },
+        data: {
+          status: IPStatus.AVAILABLE,
+          assetId: null,
+          assignmentTargetType: null,
+          assignmentTargetLabel: null,
+        },
+      });
+    }
+
+    if ((input.status === IPStatus.ASSIGNED || input.status === IPStatus.RESERVED) && !targetType) {
+      const err: any = new Error("Target required");
+      err.code = "TARGET_REQUIRED";
       throw err;
     }
-    if (status === IPStatus.ASSIGNED) {
-      const err: any = new Error("Invalid status");
-      err.code = "INVALID_STATUS";
+
+    if (!targetType && !targetLabel && !assetId) {
+      return await prisma.iPAddress.update({
+        where: { id: ipId },
+        data: {
+          status: input.status,
+          assetId: null,
+          assignmentTargetType: null,
+          assignmentTargetLabel: null,
+        },
+      });
+    }
+
+    if (targetType === IPAssignmentTargetType.HARDWARE) {
+      if (!assetId) {
+        const err: any = new Error("Asset required");
+        err.code = "ASSET_REQUIRED";
+        throw err;
+      }
+
+      const asset = await prisma.asset.findUnique({
+        where: { id: assetId },
+        select: { id: true, name: true, serialNumber: true },
+      });
+      if (!asset) {
+        const err: any = new Error("Asset not found");
+        err.code = "ASSET_NOT_FOUND";
+        throw err;
+      }
+
+      return await prisma.iPAddress.update({
+        where: { id: ipId },
+        data: {
+          status: input.status,
+          assetId: asset.id,
+          assignmentTargetType: IPAssignmentTargetType.HARDWARE,
+          assignmentTargetLabel: `${asset.name} (${asset.serialNumber})`,
+        },
+      });
+    }
+
+    if (!targetLabel && (input.status === IPStatus.ASSIGNED || input.status === IPStatus.RESERVED)) {
+      const err: any = new Error("Target detail required");
+      err.code = "TARGET_LABEL_REQUIRED";
       throw err;
     }
 
     return await prisma.iPAddress.update({
       where: { id: ipId },
-      data: { status },
+      data: {
+        status: input.status,
+        assetId: null,
+        assignmentTargetType: targetType,
+        assignmentTargetLabel: targetLabel,
+      },
     });
   },
 };

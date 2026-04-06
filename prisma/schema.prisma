@@ -41,6 +41,12 @@ enum IPStatus {
   BLOCKED
 }
 
+enum IPAssignmentTargetType {
+  HARDWARE
+  VM
+  OTHER
+}
+
 model User {
   id            String     @id @default(cuid())
   email         String     @unique
@@ -147,10 +153,12 @@ model PublicIPRange {
 }
 
 model IPAddress {
-  id        String   @id @default(cuid())
-  address   String   @unique
-  isPublic  Boolean  @default(false)
-  status    IPStatus @default(AVAILABLE)
+  id        String                 @id @default(cuid())
+  address   String                 @unique
+  isPublic  Boolean                @default(false)
+  status    IPStatus               @default(AVAILABLE)
+  assignmentTargetType  IPAssignmentTargetType?
+  assignmentTargetLabel String?
   publicRangeId String?
   publicRange   PublicIPRange? @relation(fields: [publicRangeId], references: [id], onDelete: SetNull)
   assetId   String?

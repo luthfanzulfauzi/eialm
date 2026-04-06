@@ -5,7 +5,7 @@ import {
   isPrivateIPv4,
   parseIPv4ToBigInt,
 } from "@/lib/ip";
-import { IPStatus } from "@prisma/client";
+import { IPAssignmentTargetType, IPStatus } from "@prisma/client";
 
 const MAX_PRIVATE_CIDR_HOSTS = 1024;
 
@@ -14,7 +14,16 @@ type CreatePrivateIpInput = {
   address: string;
   prefix?: number;
   assetId?: string | null;
+  assignmentTargetType?: IPAssignmentTargetType | null;
+  assignmentTargetLabel?: string | null;
   status?: IPStatus;
+};
+
+type IpStateInput = {
+  status: IPStatus;
+  assetId?: string | null;
+  assignmentTargetType?: IPAssignmentTargetType | null;
+  assignmentTargetLabel?: string | null;
 };
 
 const EMPTY_COUNTS = {
@@ -44,6 +53,81 @@ async function ensureAssetExists(assetId?: string | null) {
   }
 
   return asset.id;
+}
+
+async function buildAssignmentPayload(input: IpStateInput) {
+  const assetId = await ensureAssetExists(input.assetId);
+  const targetType = input.assignmentTargetType ?? null;
+  const targetLabel =
+    typeof input.assignmentTargetLabel === "string" && input.assignmentTargetLabel.trim().length > 0
+      ? input.assignmentTargetLabel.trim()
+      : null;
+
+  if (input.status === IPStatus.AVAILABLE) {
+    return {
+      status: IPStatus.AVAILABLE,
+      assetId: null,
+      assignmentTargetType: null,
+      assignmentTargetLabel: null,
+    };
+  }
+
+  const needsMandatoryTarget = input.status === IPStatus.ASSIGNED || input.status === IPStatus.RESERVED;
+  const hasAnyTarget = targetType !== null || targetLabel !== null || assetId !== null;
+
+  if (needsMandatoryTarget && targetType === null) {
+    const error: any = new Error("Assignment target type is required");
+    error.code = "TARGET_REQUIRED";
+    throw error;
+  }
+
+  if (!needsMandatoryTarget && !hasAnyTarget) {
+    return {
+      status: input.status,
+      assetId: null,
+      assignmentTargetType: null,
+      assignmentTargetLabel: null,
+    };
+  }
+
+  if (targetType === IPAssignmentTargetType.HARDWARE) {
+    if (!assetId) {
+      const error: any = new Error("Hardware assignment requires an asset");
+      error.code = "ASSET_REQUIRED";
+      throw error;
+    }
+
+    const asset = await prisma.asset.findUnique({
+      where: { id: assetId },
+      select: { name: true, serialNumber: true },
+    });
+
+    return {
+      status: input.status,
+      assetId,
+      assignmentTargetType: IPAssignmentTargetType.HARDWARE,
+      assignmentTargetLabel: asset ? `${asset.name} (${asset.serialNumber})` : null,
+    };
+  }
+
+  if (!targetType) {
+    const error: any = new Error("Assignment target type is required");
+    error.code = "TARGET_REQUIRED";
+    throw error;
+  }
+
+  if (!targetLabel && needsMandatoryTarget) {
+    const error: any = new Error("Assignment target detail is required");
+    error.code = "TARGET_LABEL_REQUIRED";
+    throw error;
+  }
+
+  return {
+    status: input.status,
+    assetId: null,
+    assignmentTargetType: targetType,
+    assignmentTargetLabel: targetLabel,
+  };
 }
 
 export const NetworkService = {
@@ -113,14 +197,12 @@ export const NetworkService = {
     >();
 
     for (const ip of items) {
-      const normalizedStatus =
-        ip.assetId && ip.status !== IPStatus.ASSIGNED ? IPStatus.ASSIGNED : ip.status;
-
+      const normalizedStatus = ip.status;
       if (normalizedStatus === IPStatus.AVAILABLE) summary.available += 1;
       if (normalizedStatus === IPStatus.RESERVED) summary.reserved += 1;
       if (normalizedStatus === IPStatus.ASSIGNED) summary.assigned += 1;
       if (normalizedStatus === IPStatus.BLOCKED) summary.blocked += 1;
-      if (ip.assetId) summary.assignedAssets += 1;
+      if (ip.status === IPStatus.ASSIGNED && (ip.assetId || ip.assignmentTargetType)) summary.assignedAssets += 1;
       else summary.unassigned += 1;
 
       const subnetKey = toSubnetKey(ip.address);
@@ -130,7 +212,7 @@ export const NetworkService = {
         assignedAssets: 0,
       };
       existing.counts[normalizedStatus] += 1;
-      if (ip.assetId) existing.assignedAssets += 1;
+      if (ip.status === IPStatus.ASSIGNED && (ip.assetId || ip.assignmentTargetType)) existing.assignedAssets += 1;
       subnetMap.set(subnetKey, existing);
     }
 
@@ -160,19 +242,30 @@ export const NetworkService = {
       throw error;
     }
 
+    const assignment =
+      assetId !== null
+        ? await buildAssignmentPayload({
+            status: IPStatus.ASSIGNED,
+            assetId,
+            assignmentTargetType: IPAssignmentTargetType.HARDWARE,
+          })
+        : {
+            status: IPStatus.AVAILABLE,
+            assetId: null,
+            assignmentTargetType: null,
+            assignmentTargetLabel: null,
+          };
+
     return await prisma.iPAddress.create({
       data: {
         address: data.address,
         isPublic: data.isPublic,
-        assetId,
-        status: assetId ? IPStatus.ASSIGNED : IPStatus.AVAILABLE,
+        ...assignment,
       },
     });
   },
 
   async createPrivateIPs(input: CreatePrivateIpInput) {
-    const assetId = await ensureAssetExists(input.assetId);
-
     const addresses =
       input.mode === "cidr"
         ? expandIPv4CidrHosts(input.address, input.prefix ?? -1, MAX_PRIVATE_CIDR_HOSTS)
@@ -199,16 +292,16 @@ export const NetworkService = {
       throw error;
     }
 
-    if (assetId && uniqueAddresses.length !== 1) {
+    const assignment = await buildAssignmentPayload({
+      status: input.status ?? IPStatus.AVAILABLE,
+      assetId: input.assetId ?? null,
+      assignmentTargetType: input.assignmentTargetType ?? null,
+      assignmentTargetLabel: input.assignmentTargetLabel ?? null,
+    });
+
+    if (assignment.status === IPStatus.ASSIGNED && uniqueAddresses.length !== 1) {
       const error: any = new Error("Bulk assignment is not supported");
       error.code = "MULTI_ASSIGNMENT_NOT_SUPPORTED";
-      throw error;
-    }
-
-    const status = assetId ? IPStatus.ASSIGNED : input.status ?? IPStatus.AVAILABLE;
-    if (!assetId && status === IPStatus.ASSIGNED) {
-      const error: any = new Error("Assigned status requires an asset");
-      error.code = "INVALID_STATUS";
       throw error;
     }
 
@@ -219,8 +312,7 @@ export const NetworkService = {
             data: {
               address: uniqueAddresses[0],
               isPublic: false,
-              assetId,
-              status,
+              ...assignment,
             },
           }),
         ],
@@ -231,7 +323,7 @@ export const NetworkService = {
       data: uniqueAddresses.map((address) => ({
         address,
         isPublic: false,
-        status,
+        ...assignment,
       })),
     });
 
@@ -244,11 +336,9 @@ export const NetworkService = {
   },
 
   async updateIPAssignment(ipId: string, assetId: string | null) {
-    const nextAssetId = await ensureAssetExists(assetId);
-
     const existing = await prisma.iPAddress.findUnique({
       where: { id: ipId },
-      select: { id: true, status: true },
+      select: { id: true, status: true, assignmentTargetType: true },
     });
     if (!existing) {
       const error: any = new Error("IP not found");
@@ -256,22 +346,16 @@ export const NetworkService = {
       throw error;
     }
 
-    if (nextAssetId && existing.status === IPStatus.BLOCKED) {
-      const error: any = new Error("Blocked IPs cannot be assigned");
-      error.code = "INVALID_STATUS";
-      throw error;
-    }
-
-    const nextStatus =
-      nextAssetId !== null
-        ? IPStatus.ASSIGNED
-        : existing.status === IPStatus.ASSIGNED
-          ? IPStatus.AVAILABLE
-          : existing.status;
+    const nextStatus = existing.status === IPStatus.ASSIGNED ? IPStatus.AVAILABLE : existing.status;
 
     return await prisma.iPAddress.update({
       where: { id: ipId },
-      data: { assetId: nextAssetId, status: nextStatus },
+      data: {
+        status: nextStatus,
+        assetId: null,
+        assignmentTargetType: null,
+        assignmentTargetLabel: null,
+      },
       include: {
         asset: {
           select: {
@@ -285,10 +369,10 @@ export const NetworkService = {
     });
   },
 
-  async updatePrivateIpStatus(ipId: string, status: IPStatus) {
+  async updatePrivateIpStatus(ipId: string, input: IpStateInput) {
     const ip = await prisma.iPAddress.findUnique({
       where: { id: ipId },
-      select: { id: true, assetId: true, isPublic: true },
+      select: { id: true, isPublic: true },
     });
 
     if (!ip) {
@@ -301,20 +385,11 @@ export const NetworkService = {
       error.code = "NOT_PRIVATE";
       throw error;
     }
-    if (ip.assetId) {
-      const error: any = new Error("Assigned IP status cannot be changed");
-      error.code = "ASSIGNED";
-      throw error;
-    }
-    if (status === IPStatus.ASSIGNED) {
-      const error: any = new Error("Assigned status requires an asset");
-      error.code = "INVALID_STATUS";
-      throw error;
-    }
+    const assignment = await buildAssignmentPayload(input);
 
     return await prisma.iPAddress.update({
       where: { id: ipId },
-      data: { status },
+      data: assignment,
       include: {
         asset: {
           select: {
@@ -331,7 +406,7 @@ export const NetworkService = {
   async deletePrivateIp(ipId: string) {
     const ip = await prisma.iPAddress.findUnique({
       where: { id: ipId },
-      select: { id: true, isPublic: true, assetId: true },
+      select: { id: true, isPublic: true, assetId: true, assignmentTargetType: true, status: true },
     });
 
     if (!ip) {
@@ -344,7 +419,7 @@ export const NetworkService = {
       error.code = "NOT_PRIVATE";
       throw error;
     }
-    if (ip.assetId) {
+    if (ip.status === IPStatus.ASSIGNED) {
       const error: any = new Error("Assigned IP cannot be deleted");
       error.code = "ASSIGNED";
       throw error;
