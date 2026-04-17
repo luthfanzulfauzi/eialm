@@ -54,3 +54,28 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     return NextResponse.json({ error: "Failed to update status" }, { status: 400 });
   }
 }
+
+export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
+  const session = await getServerSession(authOptions);
+  if (!session || (session.user.role !== "ADMIN" && session.user.role !== "OPERATOR")) {
+    return new NextResponse("Forbidden", { status: 403 });
+  }
+
+  try {
+    await PublicIpService.deleteIp(params.id);
+    return NextResponse.json({ ok: true });
+  } catch (e: any) {
+    if (e?.code === "NOT_FOUND") return new NextResponse("Not Found", { status: 404 });
+    if (e?.code === "NOT_PUBLIC") return new NextResponse("Forbidden", { status: 403 });
+    if (e?.code === "ASSIGNED") {
+      return NextResponse.json({ error: "Assigned IPs must be released before deletion." }, { status: 409 });
+    }
+    if (e?.code === "RANGE_MANAGED_IP") {
+      return NextResponse.json(
+        { error: "This IP belongs to a managed range. Edit or delete the range instead." },
+        { status: 409 }
+      );
+    }
+    return NextResponse.json({ error: "Failed to delete public IP." }, { status: 400 });
+  }
+}

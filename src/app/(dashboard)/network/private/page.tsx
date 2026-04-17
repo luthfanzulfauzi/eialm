@@ -134,6 +134,8 @@ export default function PrivateIPPage() {
   const [manageForm, setManageForm] = useState<StatusFormState>(getInitialFormState());
   const [submitting, setSubmitting] = useState(false);
   const [banner, setBanner] = useState<{ type: "error" | "success"; message: string } | null>(null);
+  const [createModalError, setCreateModalError] = useState<string | null>(null);
+  const [rangeModalError, setRangeModalError] = useState<string | null>(null);
   const router = useRouter();
   const { isViewer } = useRole();
   const canManage = !isViewer;
@@ -188,12 +190,14 @@ export default function PrivateIPPage() {
     setAddress("");
     setPrefix("24");
     setCreateForm(getInitialFormState());
+    setCreateModalError(null);
   };
 
   const resetRangeForm = () => {
     setActiveRange(null);
     setRangeNetwork("");
     setRangePrefix("24");
+    setRangeModalError(null);
   };
 
   const openManageModal = (ip: PrivateIp) => {
@@ -208,12 +212,14 @@ export default function PrivateIPPage() {
     setAddress("");
     setPrefix("24");
     setCreateForm(getInitialFormState());
+    setCreateModalError(null);
   };
 
   const openEditRangeModal = (range: PrivateRange) => {
     setActiveRange(range);
     setRangeNetwork(range.network);
     setRangePrefix(String(range.prefix));
+    setRangeModalError(null);
     setShowRangeModal(true);
   };
 
@@ -251,12 +257,14 @@ export default function PrivateIPPage() {
 
     const validation = validateForm(createForm, mode === "cidr");
     if (validation) {
-      setBanner({ type: "error", message: validation });
+      if (mode === "cidr") setCreateModalError(validation);
+      else setBanner({ type: "error", message: validation });
       return;
     }
 
     setSubmitting(true);
-    setBanner(null);
+    if (mode === "cidr") setCreateModalError(null);
+    else setBanner(null);
     try {
       const res = await fetch("/api/network", {
         method: "POST",
@@ -276,7 +284,9 @@ export default function PrivateIPPage() {
           Array.isArray(payload.addresses) && payload.addresses.length
             ? ` Existing: ${payload.addresses.slice(0, 3).join(", ")}${payload.addresses.length > 3 ? "..." : ""}`
             : "";
-        setBanner({ type: "error", message: `${payload.error || "Failed to register IPs."}${extra}` });
+        const message = `${payload.error || "Failed to register IPs."}${extra}`;
+        if (mode === "cidr") setCreateModalError(message);
+        else setBanner({ type: "error", message });
         return;
       }
 
@@ -293,7 +303,8 @@ export default function PrivateIPPage() {
       router.refresh();
     } catch (error) {
       console.error("Private IP registration failed", error);
-      setBanner({ type: "error", message: "Private IP registration failed." });
+      if (mode === "cidr") setCreateModalError("Private IP registration failed.");
+      else setBanner({ type: "error", message: "Private IP registration failed." });
     } finally {
       setSubmitting(false);
     }
@@ -391,7 +402,7 @@ export default function PrivateIPPage() {
     if (!canManage || !activeRange) return;
 
     setSubmitting(true);
-    setBanner(null);
+    setRangeModalError(null);
     try {
       const res = await fetch(`/api/private-ip/ranges/${activeRange.id}`, {
         method: "PATCH",
@@ -400,7 +411,7 @@ export default function PrivateIPPage() {
       });
       const payload = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setBanner({ type: "error", message: payload.error || "Failed to update private range." });
+        setRangeModalError(payload.error || "Failed to update private range.");
         return;
       }
 
@@ -414,7 +425,7 @@ export default function PrivateIPPage() {
       router.refresh();
     } catch (error) {
       console.error("Range update failed", error);
-      setBanner({ type: "error", message: "Failed to update private range." });
+      setRangeModalError("Failed to update private range.");
     } finally {
       setSubmitting(false);
     }
@@ -781,6 +792,12 @@ export default function PrivateIPPage() {
         title="Register Private IP Inventory"
       >
         <div className="space-y-5">
+          {createModalError && (
+            <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+              {createModalError}
+            </div>
+          )}
+
           <div className="grid gap-2">
             <div className="text-sm font-medium text-slate-300">Registration Mode</div>
             <div className="grid grid-cols-2 gap-2">
@@ -859,6 +876,12 @@ export default function PrivateIPPage() {
         title={`Edit ${activeRange?.cidr || "Private IP Range"}`}
       >
         <div className="space-y-5">
+          {rangeModalError && (
+            <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+              {rangeModalError}
+            </div>
+          )}
+
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <div className="text-sm font-medium text-slate-300">Network</div>
