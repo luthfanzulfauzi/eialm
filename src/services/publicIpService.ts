@@ -8,7 +8,115 @@ function toCidr(network: string, prefix: number) {
   return `${network}/${prefix}`;
 }
 
+function buildRangePayload(input: { network: string; prefix: number }) {
+  const prefix = input.prefix;
+  if (parseIPv4ToBigInt(input.network) === null) {
+    throw new Error("Invalid network address");
+  }
+
+  const range = cidrToIPv4Range(input.network, prefix);
+  if (!range) {
+    throw new Error("Invalid network/prefix");
+  }
+  if (range.size > MAX_GENERATED_IPS) {
+    throw new Error("Range too large");
+  }
+
+  return {
+    prefix,
+    range,
+    cidr: toCidr(input.network, prefix),
+    startAddress: formatBigIntToIPv4(range.start),
+    endAddress: formatBigIntToIPv4(range.end),
+    size: Number(range.size),
+  };
+}
+
 export const PublicIpService = {
+  async getInventory() {
+    const [items, ranges, assets] = await Promise.all([
+      prisma.iPAddress.findMany({
+        where: { isPublic: true },
+        include: {
+          asset: {
+            select: { id: true, name: true, serialNumber: true, category: true },
+          },
+        },
+      }),
+      this.listRanges(),
+      prisma.asset.findMany({
+        select: {
+          id: true,
+          name: true,
+          serialNumber: true,
+          category: true,
+        },
+        orderBy: [{ name: "asc" }, { serialNumber: "asc" }],
+      }),
+    ]);
+
+    const sortedItems = [...items].sort((a, b) => compareIPv4Addresses(a.address, b.address));
+    const summary = {
+      total: sortedItems.length,
+      available: 0,
+      reserved: 0,
+      assigned: 0,
+      blocked: 0,
+      assignedAssets: 0,
+      unassigned: 0,
+      rangeCount: ranges.length,
+    };
+
+    const subnetMap = new Map<
+      string,
+      {
+        cidr: string;
+        counts: Record<IPStatus, number>;
+        assignedAssets: number;
+      }
+    >();
+
+    for (const ip of sortedItems) {
+      if (ip.status === IPStatus.AVAILABLE) summary.available += 1;
+      if (ip.status === IPStatus.RESERVED) summary.reserved += 1;
+      if (ip.status === IPStatus.ASSIGNED) summary.assigned += 1;
+      if (ip.status === IPStatus.BLOCKED) summary.blocked += 1;
+      if (ip.status === IPStatus.ASSIGNED && (ip.assetId || ip.assignmentTargetType)) summary.assignedAssets += 1;
+      else summary.unassigned += 1;
+
+      const parts = ip.address.split(".");
+      const subnetKey = `${parts[0]}.${parts[1]}.${parts[2]}.0/24`;
+      const existing = subnetMap.get(subnetKey) ?? {
+        cidr: subnetKey,
+        counts: {
+          AVAILABLE: 0,
+          RESERVED: 0,
+          ASSIGNED: 0,
+          BLOCKED: 0,
+        },
+        assignedAssets: 0,
+      };
+
+      existing.counts[ip.status] += 1;
+      if (ip.status === IPStatus.ASSIGNED && (ip.assetId || ip.assignmentTargetType)) {
+        existing.assignedAssets += 1;
+      }
+      subnetMap.set(subnetKey, existing);
+    }
+
+    const subnets = Array.from(subnetMap.values()).sort((a, b) =>
+      a.cidr.localeCompare(b.cidr, undefined, { numeric: true })
+    );
+
+    return {
+      items: sortedItems,
+      summary,
+      subnets,
+      ranges,
+      assignableAssets: assets,
+    };
+  },
+
   async listRanges() {
     const ranges = await prisma.publicIPRange.findMany({
       orderBy: [{ startInt: "asc" }, { prefix: "asc" }],
@@ -57,18 +165,7 @@ export const PublicIpService = {
   },
 
   async createRange(input: { network: string; prefix: number }) {
-    const prefix = input.prefix;
-    if (parseIPv4ToBigInt(input.network) === null) {
-      throw new Error("Invalid network address");
-    }
-
-    const range = cidrToIPv4Range(input.network, prefix);
-    if (!range) {
-      throw new Error("Invalid network/prefix");
-    }
-    if (range.size > MAX_GENERATED_IPS) {
-      throw new Error("Range too large");
-    }
+    const { prefix, range, cidr, startAddress, endAddress, size } = buildRangePayload(input);
 
     const existingOverlap = await prisma.publicIPRange.findFirst({
       where: {
@@ -82,11 +179,6 @@ export const PublicIpService = {
       err.overlap = existingOverlap;
       throw err;
     }
-
-    const cidr = toCidr(input.network, prefix);
-    const startAddress = formatBigIntToIPv4(range.start);
-    const endAddress = formatBigIntToIPv4(range.end);
-    const size = Number(range.size);
 
     const created = await prisma.$transaction(async (tx) => {
       const rangeRow = await tx.publicIPRange.create({
@@ -125,6 +217,123 @@ export const PublicIpService = {
     });
 
     return created;
+  },
+
+  async updateRange(rangeId: string, input: { network: string; prefix: number }) {
+    const existing = await prisma.publicIPRange.findUnique({
+      where: { id: rangeId },
+      select: { id: true },
+    });
+    if (!existing) {
+      const err: any = new Error("Not found");
+      err.code = "NOT_FOUND";
+      throw err;
+    }
+
+    const activeIp = await prisma.iPAddress.findFirst({
+      where: {
+        publicRangeId: rangeId,
+        OR: [
+          { status: { not: IPStatus.AVAILABLE } },
+          { assignmentTargetType: { not: null } },
+          { assetId: { not: null } },
+        ],
+      },
+      select: { id: true, address: true, status: true },
+    });
+    if (activeIp) {
+      const err: any = new Error("Range in use");
+      err.code = "RANGE_IN_USE";
+      err.ip = activeIp;
+      throw err;
+    }
+
+    const { prefix, range, cidr, startAddress, endAddress, size } = buildRangePayload(input);
+
+    const overlap = await prisma.publicIPRange.findFirst({
+      where: {
+        id: { not: rangeId },
+        AND: [{ startInt: { lte: range.end } }, { endInt: { gte: range.start } }],
+      },
+      select: { id: true, cidr: true },
+    });
+    if (overlap) {
+      const err: any = new Error("Overlapping range");
+      err.code = "OVERLAP";
+      err.overlap = overlap;
+      throw err;
+    }
+
+    return await prisma.$transaction(async (tx) => {
+      await tx.iPAddress.deleteMany({ where: { publicRangeId: rangeId } });
+
+      const updated = await tx.publicIPRange.update({
+        where: { id: rangeId },
+        data: {
+          network: input.network,
+          prefix,
+          cidr,
+          startInt: range.start,
+          endInt: range.end,
+          startAddress,
+          endAddress,
+          size,
+        },
+      });
+
+      const addresses: { address: string; isPublic: boolean; status: IPStatus; publicRangeId: string }[] = [];
+      for (let value = range.start; value <= range.end; value++) {
+        addresses.push({
+          address: formatBigIntToIPv4(value),
+          isPublic: true,
+          status: IPStatus.AVAILABLE,
+          publicRangeId: rangeId,
+        });
+      }
+
+      const CHUNK = 1000;
+      for (let i = 0; i < addresses.length; i += CHUNK) {
+        await tx.iPAddress.createMany({ data: addresses.slice(i, i + CHUNK), skipDuplicates: true });
+      }
+
+      return updated;
+    });
+  },
+
+  async deleteRange(rangeId: string) {
+    const existing = await prisma.publicIPRange.findUnique({
+      where: { id: rangeId },
+      select: { id: true },
+    });
+    if (!existing) {
+      const err: any = new Error("Not found");
+      err.code = "NOT_FOUND";
+      throw err;
+    }
+
+    const activeIp = await prisma.iPAddress.findFirst({
+      where: {
+        publicRangeId: rangeId,
+        OR: [
+          { status: { not: IPStatus.AVAILABLE } },
+          { assignmentTargetType: { not: null } },
+          { assetId: { not: null } },
+        ],
+      },
+      select: { address: true, status: true },
+    });
+    if (activeIp) {
+      const err: any = new Error("Range in use");
+      err.code = "RANGE_IN_USE";
+      err.ip = activeIp;
+      throw err;
+    }
+
+    return await prisma.$transaction(async (tx) => {
+      await tx.iPAddress.deleteMany({ where: { publicRangeId: rangeId } });
+      await tx.publicIPRange.delete({ where: { id: rangeId } });
+      return { ok: true };
+    });
   },
 
   async listRangeIps(rangeId: string) {

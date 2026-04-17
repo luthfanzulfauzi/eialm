@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
-import { Loader2, Network, Plus, RefreshCw, Search, Server, Shield, Trash2, Unlink } from "lucide-react";
+import { Edit3, Loader2, Network, Plus, RefreshCw, Search, Server, Shield, Trash2, Unlink } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,17 @@ type PrivateSubnetSummary = {
   assignedAssets: number;
 };
 
+type PrivateRange = {
+  id: string;
+  network: string;
+  prefix: number;
+  cidr: string;
+  startAddress: string;
+  endAddress: string;
+  size: number;
+  counts: Record<IPStatus, number>;
+};
+
 type InventoryResponse = {
   items: PrivateIp[];
   summary: {
@@ -47,6 +58,7 @@ type InventoryResponse = {
     subnetCount: number;
   };
   subnets: PrivateSubnetSummary[];
+  ranges: PrivateRange[];
   privateRanges: string[];
   assignableAssets: AssetOption[];
 };
@@ -102,16 +114,21 @@ export default function PrivateIPPage() {
   const [ips, setIps] = useState<PrivateIp[]>([]);
   const [summary, setSummary] = useState(DEFAULT_SUMMARY);
   const [subnets, setSubnets] = useState<PrivateSubnetSummary[]>([]);
+  const [ranges, setRanges] = useState<PrivateRange[]>([]);
   const [privateRanges, setPrivateRanges] = useState<string[]>([]);
   const [assets, setAssets] = useState<AssetOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showManageModal, setShowManageModal] = useState(false);
+  const [showRangeModal, setShowRangeModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [mode, setMode] = useState<"single" | "cidr">("single");
   const [address, setAddress] = useState("");
   const [prefix, setPrefix] = useState("24");
+  const [activeRange, setActiveRange] = useState<PrivateRange | null>(null);
+  const [rangeNetwork, setRangeNetwork] = useState("");
+  const [rangePrefix, setRangePrefix] = useState("24");
   const [createForm, setCreateForm] = useState<StatusFormState>(getInitialFormState());
   const [activeIp, setActiveIp] = useState<PrivateIp | null>(null);
   const [manageForm, setManageForm] = useState<StatusFormState>(getInitialFormState());
@@ -131,6 +148,7 @@ export default function PrivateIPPage() {
       setIps(Array.isArray(data.items) ? data.items : []);
       setSummary(data.summary ?? DEFAULT_SUMMARY);
       setSubnets(Array.isArray(data.subnets) ? data.subnets : []);
+      setRanges(Array.isArray(data.ranges) ? data.ranges : []);
       setPrivateRanges(Array.isArray(data.privateRanges) ? data.privateRanges : []);
       setAssets(Array.isArray(data.assignableAssets) ? data.assignableAssets : []);
     } catch (error) {
@@ -172,10 +190,31 @@ export default function PrivateIPPage() {
     setCreateForm(getInitialFormState());
   };
 
+  const resetRangeForm = () => {
+    setActiveRange(null);
+    setRangeNetwork("");
+    setRangePrefix("24");
+  };
+
   const openManageModal = (ip: PrivateIp) => {
     setActiveIp(ip);
     setManageForm(getInitialFormState(ip));
     setShowManageModal(true);
+  };
+
+  const openCreateRangeModal = () => {
+    setShowAddModal(true);
+    setMode("cidr");
+    setAddress("");
+    setPrefix("24");
+    setCreateForm(getInitialFormState());
+  };
+
+  const openEditRangeModal = (range: PrivateRange) => {
+    setActiveRange(range);
+    setRangeNetwork(range.network);
+    setRangePrefix(String(range.prefix));
+    setShowRangeModal(true);
   };
 
   const requiresTarget = (status: IPStatus) => status === "ASSIGNED" || status === "RESERVED";
@@ -348,6 +387,65 @@ export default function PrivateIPPage() {
     }
   };
 
+  const handleUpdateRange = async () => {
+    if (!canManage || !activeRange) return;
+
+    setSubmitting(true);
+    setBanner(null);
+    try {
+      const res = await fetch(`/api/private-ip/ranges/${activeRange.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ network: rangeNetwork.trim(), prefix: Number(rangePrefix) }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setBanner({ type: "error", message: payload.error || "Failed to update private range." });
+        return;
+      }
+
+      setBanner({
+        type: "success",
+        message: `Updated private range ${payload.cidr || `${rangeNetwork.trim()}/${rangePrefix}`}.`,
+      });
+      setShowRangeModal(false);
+      resetRangeForm();
+      await fetchInventory(true);
+      router.refresh();
+    } catch (error) {
+      console.error("Range update failed", error);
+      setBanner({ type: "error", message: "Failed to update private range." });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDeleteRange = async (range: PrivateRange) => {
+    if (!canManage) return;
+    if (!confirm(`Delete private range ${range.cidr}? This only works when every IP in the range is AVAILABLE.`)) {
+      return;
+    }
+
+    setBanner(null);
+    try {
+      const res = await fetch(`/api/private-ip/ranges/${range.id}`, {
+        method: "DELETE",
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setBanner({ type: "error", message: payload.error || "Failed to delete private range." });
+        return;
+      }
+
+      setBanner({ type: "success", message: `Deleted private range ${range.cidr}.` });
+      await fetchInventory(true);
+      router.refresh();
+    } catch (error) {
+      console.error("Range delete failed", error);
+      setBanner({ type: "error", message: "Failed to delete private range." });
+    }
+  };
+
   const statusBadge = (status: IPStatus) =>
     cn(
       "inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-bold tracking-[0.2em]",
@@ -448,6 +546,13 @@ export default function PrivateIPPage() {
           </div>
           <Button variant="outline" onClick={() => fetchInventory(true)} disabled={loading || refreshing}>
             <RefreshCw size={16} className={cn("mr-2", refreshing && "animate-spin")} /> Refresh
+          </Button>
+          <Button
+            onClick={() => canManage && openCreateRangeModal()}
+            disabled={!canManage}
+            variant="outline"
+          >
+            <Plus size={18} className="mr-2" /> Add Private IP Range
           </Button>
           <Button onClick={() => canManage && setShowAddModal(true)} disabled={!canManage} className="bg-emerald-600 shadow-emerald-500/20 hover:bg-emerald-700">
             <Plus size={18} className="mr-2" /> Add Private IPs
@@ -567,6 +672,61 @@ export default function PrivateIPPage() {
 
         <div className="space-y-4">
           <div className="rounded-2xl border border-slate-800 bg-[#111620] p-5">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-bold text-white">Managed Private Ranges</div>
+                <div className="text-xs text-slate-500">Create in CIDR mode, then edit or delete ranges here.</div>
+              </div>
+              <div className="text-xs text-slate-500">{ranges.length} ranges</div>
+            </div>
+
+            <div className="mt-4 space-y-3">
+              {ranges.length > 0 ? (
+                ranges.map((range) => (
+                  <div key={range.id} className="rounded-xl border border-slate-800 bg-slate-900/40 p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-bold text-white">{range.cidr}</div>
+                        <div className="mt-1 text-xs text-slate-500">
+                          {range.startAddress} to {range.endAddress} • {range.size} IPs
+                        </div>
+                        <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-slate-400">
+                          <span>A {range.counts.AVAILABLE}</span>
+                          <span>R {range.counts.RESERVED}</span>
+                          <span>S {range.counts.ASSIGNED}</span>
+                          <span>B {range.counts.BLOCKED}</span>
+                        </div>
+                      </div>
+                      {canManage && (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => openEditRangeModal(range)}
+                            className="rounded-lg border border-slate-700 p-2 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white"
+                            title="Edit private range"
+                          >
+                            <Edit3 size={15} />
+                          </button>
+                          <button
+                            onClick={() => void handleDeleteRange(range)}
+                            className="rounded-lg border border-red-500/20 p-2 text-red-300 transition-colors hover:bg-red-500/10 hover:text-red-200"
+                            title="Delete private range"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-xl border border-dashed border-slate-800 px-4 py-8 text-center text-sm text-slate-500">
+                  No managed private ranges yet. Use CIDR subnet mode to create one.
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-slate-800 bg-[#111620] p-5">
             <div className="flex items-center gap-3">
               <div className="rounded-xl border border-slate-700 bg-slate-900/60 p-3 text-emerald-300">
                 <Network size={18} />
@@ -685,6 +845,52 @@ export default function PrivateIPPage() {
             </Button>
             <Button onClick={() => void handleCreate()} disabled={submitting || !address.trim() || (mode === "cidr" && !prefix.trim())} className="bg-emerald-600 shadow-emerald-500/20 hover:bg-emerald-700">
               {submitting ? "Registering..." : "Register Inventory"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={showRangeModal}
+        onClose={() => {
+          setShowRangeModal(false);
+          resetRangeForm();
+        }}
+        title={`Edit ${activeRange?.cidr || "Private IP Range"}`}
+      >
+        <div className="space-y-5">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <div className="text-sm font-medium text-slate-300">Network</div>
+              <Input placeholder="10.10.20.0" value={rangeNetwork} onChange={(e) => setRangeNetwork(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <div className="text-sm font-medium text-slate-300">Prefix</div>
+              <Input placeholder="24" value={rangePrefix} onChange={(e) => setRangePrefix(e.target.value)} />
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-4 text-sm text-slate-400">
+            <p>Editing a range rebuilds the block and is only allowed when every IP in that range is AVAILABLE.</p>
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowRangeModal(false);
+                resetRangeForm();
+              }}
+              disabled={submitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => void handleUpdateRange()}
+              disabled={submitting || !rangeNetwork.trim() || !rangePrefix.trim()}
+              className="bg-emerald-600 shadow-emerald-500/20 hover:bg-emerald-700"
+            >
+              {submitting ? "Saving..." : "Save Changes"}
             </Button>
           </div>
         </div>

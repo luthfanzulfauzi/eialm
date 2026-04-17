@@ -152,6 +152,27 @@ model PublicIPRange {
   @@index([endInt])
 }
 
+model PrivateIPRange {
+  id           String      @id @default(cuid())
+  network      String
+  prefix       Int
+  cidr         String      @unique
+  startInt     BigInt
+  endInt       BigInt
+  startAddress String
+  endAddress   String
+  size         Int
+
+  ips          IPAddress[]
+
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@unique([network, prefix])
+  @@index([startInt])
+  @@index([endInt])
+}
+
 model IPAddress {
   id        String                 @id @default(cuid())
   address   String                 @unique
@@ -161,6 +182,8 @@ model IPAddress {
   assignmentTargetLabel String?
   publicRangeId String?
   publicRange   PublicIPRange? @relation(fields: [publicRangeId], references: [id], onDelete: SetNull)
+  privateRangeId String?
+  privateRange   PrivateIPRange? @relation(fields: [privateRangeId], references: [id], onDelete: SetNull)
   assetId   String?
   asset     Asset?   @relation(fields: [assetId], references: [id], onDelete: SetNull)
   

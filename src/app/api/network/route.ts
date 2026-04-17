@@ -113,6 +113,12 @@ function formatNetworkError(error: any) {
   if (error?.code === "ASSIGNED") {
     return NextResponse.json({ error: "Assigned IPs must be released before deletion." }, { status: 409 });
   }
+  if (error?.code === "RANGE_MANAGED_IP") {
+    return NextResponse.json(
+      { error: "This IP belongs to a managed range. Edit or delete the range instead." },
+      { status: 409 }
+    );
+  }
   if (error?.code === "NOT_PRIVATE") {
     return NextResponse.json({ error: "This action only supports private IP inventory" }, { status: 400 });
   }

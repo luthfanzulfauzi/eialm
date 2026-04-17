@@ -148,7 +148,7 @@ Support datacenter, warehouse, rack, and rack-layout workflows for real infrastr
 
 ---
 
-## Milestone 4: Network Management (90% Complete)
+## Milestone 4: Network Management (95% Complete)
 
 **Goal**
 
@@ -157,18 +157,21 @@ Manage public and private address inventory, assignment, reservation, and operat
 **Current State**
 
 - [x] Shared IP inventory model is implemented.
-- [x] Public IP range registration and IP generation exist.
+- [x] Public IP range create, edit, delete, registration, and IP generation flows exist.
 - [x] Public IP status management exists.
 - [x] Asset-IP assignment and unassignment exist.
 - [x] Private IP listing and search exist.
 - [x] Private IP creation, bulk subnet registration, assignment, status updates, and deletion flows now exist in the UI/API.
+- [x] Managed private range create, edit, and delete flows now exist in the UI/API.
 - [x] Private networking validation now enforces RFC1918 space, CIDR boundary checks, and bounded bulk subnet registration.
-- [x] Utilization and assignment summaries now include subnet grouping and status rollups for private inventory.
+- [x] Utilization and assignment summaries now include subnet grouping, numeric IP sorting, and status rollups for private inventory.
+- [x] Public and private IP states now support Hardware, VM, and Other assignment target metadata with required validation by status.
 - [ ] Authenticated browser-level validation should still be completed against real operator workflows in deployed mode.
 
 **Deliverables**
 
 - [x] Public IP range CRUD baseline
+- [x] Private IP range CRUD baseline
 - [x] Public IP grid/status management
 - [x] IP assignment/unassignment flows
 - [x] Private IP inventory listing
