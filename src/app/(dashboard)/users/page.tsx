@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 export default function UserManagementPage() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [now, setNow] = useState(() => Date.now());
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
@@ -27,38 +28,50 @@ export default function UserManagementPage() {
     role: "VIEWER",
   });
 
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
+  const fetchUsers = async (background = false) => {
+    try {
+      if (!background) {
         setLoading(true);
-        const res = await fetch("/api/users");
-        if (!res.ok) {
-          const payload = await res.text().catch(() => "");
-          throw new Error(payload || "Failed to load users");
-        }
-        const data = await res.json();
-        setUsers(data);
-      } catch (error) {
-        console.error("Failed to load users:", error);
+      }
+
+      const res = await fetch("/api/users", { cache: "no-store" });
+      if (!res.ok) {
+        const payload = await res.text().catch(() => "");
+        throw new Error(payload || "Failed to load users");
+      }
+      const data = await res.json();
+      setUsers(data);
+    } catch (error) {
+      console.error("Failed to load users:", error);
+      if (!background) {
         window.alert(error instanceof Error ? error.message : "Failed to load users");
-      } finally {
+      }
+    } finally {
+      if (!background) {
         setLoading(false);
       }
-    };
+    }
+  };
 
-    fetchUsers();
+  useEffect(() => {
+    void fetchUsers();
+
+    const refreshInterval = window.setInterval(() => {
+      void fetchUsers(true);
+    }, 60_000);
+
+    const clockInterval = window.setInterval(() => {
+      setNow(Date.now());
+    }, 30_000);
+
+    return () => {
+      window.clearInterval(refreshInterval);
+      window.clearInterval(clockInterval);
+    };
   }, []);
 
   const refreshUsers = async () => {
-    try {
-      setLoading(true);
-      const res = await fetch("/api/users");
-      if (!res.ok) return;
-      const data = await res.json();
-      setUsers(data);
-    } finally {
-      setLoading(false);
-    }
+    await fetchUsers();
   };
 
   const handleCreateUser = async (e: FormEvent) => {
@@ -200,19 +213,21 @@ export default function UserManagementPage() {
               </tr>
             )}
             {users.map((user: any) => {
-              // Dynamic Status Logic
-              const lastActive = user.lastLogin ? new Date(user.lastLogin) : null;
-              const minutesSinceActive = lastActive ? differenceInMinutes(new Date(), lastActive) : Infinity;
+              const lastActivityValue = user.lastActivityAt || user.lastLogin;
+              const lastActive = lastActivityValue ? new Date(lastActivityValue) : null;
+              const minutesSinceActive = lastActive ? differenceInMinutes(now, lastActive) : Infinity;
+              const timeoutMinutes =
+                typeof user.loginTimeout === "number" && user.loginTimeout > 0 ? user.loginTimeout : 30;
               
               let statusLabel = "Offline";
               let statusColor = "bg-slate-500 shadow-none";
               let textColor = "text-slate-500";
 
-              if (minutesSinceActive <= 15) {
+              if (minutesSinceActive <= 5) {
                 statusLabel = "Online";
                 statusColor = "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]";
                 textColor = "text-emerald-500";
-              } else if (minutesSinceActive <= 60) {
+              } else if (minutesSinceActive < timeoutMinutes) {
                 statusLabel = "Away";
                 statusColor = "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]";
                 textColor = "text-amber-500";
@@ -244,9 +259,11 @@ export default function UserManagementPage() {
                   </td>
                   <td className="px-6 py-4">
                     <div className="text-xs text-slate-300">
-                      {user.lastLogin ? formatDistanceToNow(new Date(user.lastLogin)) + " ago" : "Never"}
+                      {lastActive ? formatDistanceToNow(lastActive) + " ago" : "Never"}
                     </div>
-                    <div className="text-[10px] text-slate-500 font-mono">192.168.1.XXX</div>
+                    <div className="text-[10px] text-slate-500 font-mono">
+                      Timeout: {timeoutMinutes}m
+                    </div>
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">

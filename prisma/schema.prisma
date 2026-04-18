@@ -55,6 +55,7 @@ model User {
   role          Role       @default(VIEWER)
   image         String?    // Profile picture path
   lastLogin     DateTime?
+  lastActivityAt DateTime?
   loginTimeout  Int        @default(30) // Minutes, only manageable by Admin
   
   auditLogs     AuditLog[]

@@ -1,6 +1,22 @@
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
 
+const ACTIVITY_COOKIE = "eialm_last_activity";
+
+function clearSessionCookies(response: NextResponse) {
+  const cookieNames = [
+    ACTIVITY_COOKIE,
+    "next-auth.session-token",
+    "__Secure-next-auth.session-token",
+    "next-auth.callback-url",
+    "__Secure-next-auth.callback-url",
+  ];
+
+  for (const name of cookieNames) {
+    response.cookies.set(name, "", { maxAge: 0, path: "/" });
+  }
+}
+
 export default withAuth(
   function middleware(req: any) {
     const token = req.nextauth.token;
@@ -30,7 +46,7 @@ export default withAuth(
         ? (token as any).loginTimeout
         : 30;
 
-    const lastActivityRaw = req.cookies.get("eialm_last_activity")?.value;
+    const lastActivityRaw = req.cookies.get(ACTIVITY_COOKIE)?.value;
     const lastActivity = lastActivityRaw ? Number(lastActivityRaw) : NaN;
 
     if (Number.isFinite(lastActivity)) {
@@ -38,14 +54,12 @@ export default withAuth(
       const timeoutMs = timeoutMinutes * 60 * 1000;
 
       if (elapsedMs > timeoutMs) {
-        const redirectUrl = new URL("/login", req.url);
-        redirectUrl.searchParams.set("callbackUrl", pathname);
-        const res = NextResponse.redirect(redirectUrl);
+        const isApiRequest = pathname.startsWith("/api/");
+        const res = isApiRequest
+          ? NextResponse.json({ error: "Session timed out" }, { status: 401 })
+          : NextResponse.redirect(new URL(`/login?timedOut=1&callbackUrl=${encodeURIComponent(pathname)}`, req.url));
 
-        res.cookies.set("eialm_last_activity", "", { maxAge: 0, path: "/" });
-        res.cookies.set("next-auth.session-token", "", { maxAge: 0, path: "/" });
-        res.cookies.set("__Secure-next-auth.session-token", "", { maxAge: 0, path: "/" });
-
+        clearSessionCookies(res);
         return res;
       }
     }
@@ -67,14 +81,7 @@ export default withAuth(
       return NextResponse.redirect(new URL("/", req.url));
     }
 
-    const res = NextResponse.next();
-    res.cookies.set("eialm_last_activity", String(now), {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: req.nextUrl.protocol === "https:",
-      path: "/",
-    });
-    return res;
+    return NextResponse.next();
   },
   {
     callbacks: {

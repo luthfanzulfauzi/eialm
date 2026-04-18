@@ -38,6 +38,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       email: true,
       role: true,
       lastLogin: true,
+      lastActivityAt: true,
+      loginTimeout: true,
       image: true,
       createdAt: true,
     },

@@ -1,0 +1,8 @@
+.git
+.next
+node_modules
+pgdata
+.env.devtest
+Dockerfile.devtest
+docker-compose.devtest.yml
+npm-debug.log*

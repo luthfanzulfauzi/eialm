@@ -84,9 +84,13 @@ export const authOptions: NextAuthOptions = {
   // ADDED: Event trigger to update database on every successful login
   events: {
     async signIn({ user }: any) {
+      const now = new Date();
       await prisma.user.update({
         where: { id: user.id },
-        data: { lastLogin: new Date() },
+        data: {
+          lastLogin: now,
+          lastActivityAt: now,
+        },
       });
     },
   },
