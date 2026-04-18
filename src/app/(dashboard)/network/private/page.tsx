@@ -119,22 +119,16 @@ export default function PrivateIPPage() {
   const [assets, setAssets] = useState<AssetOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [showAddModal, setShowAddModal] = useState(false);
   const [showManageModal, setShowManageModal] = useState(false);
   const [showRangeModal, setShowRangeModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [mode, setMode] = useState<"single" | "cidr">("single");
-  const [address, setAddress] = useState("");
-  const [prefix, setPrefix] = useState("24");
   const [activeRange, setActiveRange] = useState<PrivateRange | null>(null);
   const [rangeNetwork, setRangeNetwork] = useState("");
   const [rangePrefix, setRangePrefix] = useState("24");
-  const [createForm, setCreateForm] = useState<StatusFormState>(getInitialFormState());
   const [activeIp, setActiveIp] = useState<PrivateIp | null>(null);
   const [manageForm, setManageForm] = useState<StatusFormState>(getInitialFormState());
   const [submitting, setSubmitting] = useState(false);
   const [banner, setBanner] = useState<{ type: "error" | "success"; message: string } | null>(null);
-  const [createModalError, setCreateModalError] = useState<string | null>(null);
   const [rangeModalError, setRangeModalError] = useState<string | null>(null);
   const router = useRouter();
   const { isViewer } = useRole();
@@ -185,14 +179,6 @@ export default function PrivateIPPage() {
     );
   }, [ips, searchQuery]);
 
-  const resetCreateModal = () => {
-    setMode("single");
-    setAddress("");
-    setPrefix("24");
-    setCreateForm(getInitialFormState());
-    setCreateModalError(null);
-  };
-
   const resetRangeForm = () => {
     setActiveRange(null);
     setRangeNetwork("");
@@ -207,12 +193,8 @@ export default function PrivateIPPage() {
   };
 
   const openCreateRangeModal = () => {
-    setShowAddModal(true);
-    setMode("cidr");
-    setAddress("");
-    setPrefix("24");
-    setCreateForm(getInitialFormState());
-    setCreateModalError(null);
+    resetRangeForm();
+    setShowRangeModal(true);
   };
 
   const openEditRangeModal = (range: PrivateRange) => {
@@ -235,10 +217,8 @@ export default function PrivateIPPage() {
       allowsTarget(form.status) && !isHardwareTarget(form.targetType) ? form.targetLabel.trim() || null : null,
   });
 
-  const validateForm = (form: StatusFormState, isBulk: boolean) => {
+  const validateForm = (form: StatusFormState) => {
     if (!allowsTarget(form.status)) return null;
-    if (isBulk && form.status === "ASSIGNED") return "Bulk subnet registration cannot start in ASSIGNED state.";
-    if (isBulk && form.targetType === "HARDWARE") return "Bulk subnet registration cannot target a single hardware asset.";
     if (requiresTarget(form.status) && !form.targetType) return "Assigned and reserved IPs require a target type.";
     if (isHardwareTarget(form.targetType) && !form.assetId) return "Hardware targets require a selected hardware asset.";
     if (
@@ -252,68 +232,10 @@ export default function PrivateIPPage() {
     return null;
   };
 
-  const handleCreate = async () => {
-    if (!canManage) return;
-
-    const validation = validateForm(createForm, mode === "cidr");
-    if (validation) {
-      if (mode === "cidr") setCreateModalError(validation);
-      else setBanner({ type: "error", message: validation });
-      return;
-    }
-
-    setSubmitting(true);
-    if (mode === "cidr") setCreateModalError(null);
-    else setBanner(null);
-    try {
-      const res = await fetch("/api/network", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "createPrivate",
-          mode,
-          address: address.trim(),
-          prefix: mode === "cidr" ? Number(prefix) : undefined,
-          ...buildPayload(createForm),
-        }),
-      });
-
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        const extra =
-          Array.isArray(payload.addresses) && payload.addresses.length
-            ? ` Existing: ${payload.addresses.slice(0, 3).join(", ")}${payload.addresses.length > 3 ? "..." : ""}`
-            : "";
-        const message = `${payload.error || "Failed to register IPs."}${extra}`;
-        if (mode === "cidr") setCreateModalError(message);
-        else setBanner({ type: "error", message });
-        return;
-      }
-
-      setBanner({
-        type: "success",
-        message:
-          mode === "cidr"
-            ? `Registered ${payload.created?.length ?? 0} private IPs from ${address.trim()}/${prefix}.`
-            : `Registered private IP ${address.trim()}.`,
-      });
-      setShowAddModal(false);
-      resetCreateModal();
-      await fetchInventory(true);
-      router.refresh();
-    } catch (error) {
-      console.error("Private IP registration failed", error);
-      if (mode === "cidr") setCreateModalError("Private IP registration failed.");
-      else setBanner({ type: "error", message: "Private IP registration failed." });
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   const handleUpdateState = async () => {
     if (!canManage || !activeIp) return;
 
-    const validation = validateForm(manageForm, false);
+    const validation = validateForm(manageForm);
     if (validation) {
       setBanner({ type: "error", message: validation });
       return;
@@ -561,12 +483,9 @@ export default function PrivateIPPage() {
           <Button
             onClick={() => canManage && openCreateRangeModal()}
             disabled={!canManage}
-            variant="outline"
+            className="bg-emerald-600 shadow-emerald-500/20 hover:bg-emerald-700"
           >
             <Plus size={18} className="mr-2" /> Add Private IP Range
-          </Button>
-          <Button onClick={() => canManage && setShowAddModal(true)} disabled={!canManage} className="bg-emerald-600 shadow-emerald-500/20 hover:bg-emerald-700">
-            <Plus size={18} className="mr-2" /> Add Private IPs
           </Button>
         </div>
       </div>
@@ -782,90 +701,6 @@ export default function PrivateIPPage() {
           </div>
         </div>
       </div>
-
-      <Modal
-        isOpen={showAddModal}
-        onClose={() => {
-          setShowAddModal(false);
-          resetCreateModal();
-        }}
-        title="Register Private IP Inventory"
-      >
-        <div className="space-y-5">
-          {createModalError && (
-            <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-              {createModalError}
-            </div>
-          )}
-
-          <div className="grid gap-2">
-            <div className="text-sm font-medium text-slate-300">Registration Mode</div>
-            <div className="grid grid-cols-2 gap-2">
-              <Button variant={mode === "single" ? "primary" : "outline"} onClick={() => setMode("single")}>
-                Single Host
-              </Button>
-              <Button variant={mode === "cidr" ? "primary" : "outline"} onClick={() => setMode("cidr")}>
-                CIDR Subnet
-              </Button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <div className="text-sm font-medium text-slate-300">{mode === "single" ? "IP Address" : "Network Address"}</div>
-              <Input placeholder={mode === "single" ? "10.10.20.15" : "10.10.20.0"} value={address} onChange={(e) => setAddress(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <div className="text-sm font-medium text-slate-300">{mode === "single" ? "Initial Status" : "Prefix / Initial Status"}</div>
-              {mode === "cidr" ? (
-                <div className="grid grid-cols-[120px,1fr] gap-3">
-                  <Input placeholder="24" value={prefix} onChange={(e) => setPrefix(e.target.value)} />
-                  <select
-                    className="h-10 w-full rounded-lg border border-slate-800 bg-slate-900/50 px-3 text-sm text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
-                    value={createForm.status}
-                    onChange={(e) => setCreateForm((current) => ({ ...current, status: e.target.value as IPStatus }))}
-                  >
-                    <option value="AVAILABLE">AVAILABLE</option>
-                    <option value="RESERVED">RESERVED</option>
-                    <option value="BLOCKED">BLOCKED</option>
-                  </select>
-                </div>
-              ) : (
-                <select
-                  className="h-10 w-full rounded-lg border border-slate-800 bg-slate-900/50 px-3 text-sm text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
-                  value={createForm.status}
-                  onChange={(e) => setCreateForm((current) => ({ ...current, status: e.target.value as IPStatus }))}
-                >
-                  {STATUS_OPTIONS.map((status) => (
-                    <option key={status} value={status}>
-                      {status}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
-          </div>
-
-          {renderTargetFields(createForm, setCreateForm, mode === "cidr")}
-
-          <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-4 text-sm text-slate-400">
-            {mode === "single" ? (
-              <p>Single-host registration can start as available, reserved, assigned, or blocked with the required destination metadata.</p>
-            ) : (
-              <p>CIDR registration adds usable hosts only. Bulk subnet imports can start as available, reserved, or blocked.</p>
-            )}
-          </div>
-
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => { setShowAddModal(false); resetCreateModal(); }} disabled={submitting}>
-              Cancel
-            </Button>
-            <Button onClick={() => void handleCreate()} disabled={submitting || !address.trim() || (mode === "cidr" && !prefix.trim())} className="bg-emerald-600 shadow-emerald-500/20 hover:bg-emerald-700">
-              {submitting ? "Registering..." : "Register Inventory"}
-            </Button>
-          </div>
-        </div>
-      </Modal>
 
       <Modal
         isOpen={showRangeModal}
