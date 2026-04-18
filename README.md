@@ -17,6 +17,7 @@ Implemented well today:
 - rack layout and placement flows
 - public IP range management
 - private IP inventory listing
+- products / application portfolio dummy module
 - asset CSV import/export
 - dashboard summary cards and recent activity
 - system settings for password change and login timeout
@@ -24,6 +25,7 @@ Implemented well today:
 Still in progress:
 
 - full license CRUD and license API routes
+- persisted product / application portfolio schema and CRUD
 - private IP create/manage flows
 - expired and expiring dashboard sections
 - global search
@@ -56,6 +58,8 @@ The working roadmap is tracked in [milestones.md](./milestones.md).
   datacenters, warehouses, racks, rack layout designer
 - Network Management
   public IP ranges, IP assignment, private IP inventory
+- Products / Application Portfolio
+  planned portfolio layer for business applications and their infrastructure relationships
 - User Management
   admin-only CRUD and role updates
 - Settings
@@ -92,7 +96,7 @@ Choose one setup path:
 
 ## Environment Variables
 
-Create a local `.env` file. The repository currently includes `.env.example`, but it is empty, so use the values below as a starting point.
+Create a local `.env` file from `.env.example`, or use the values below as a starting point.
 
 ```env
 DATABASE_URL=postgresql://admin:password123@localhost:5432/eialm_db?schema=public
@@ -187,6 +191,8 @@ Current API routes include:
 
 Some UI areas are ahead of backend completion, especially around licenses.
 
+The new Products / Application page is intentionally a dummy planning surface in the current iteration. It exists to establish navigation, UX direction, and relationship planning before schema and CRUD implementation.
+
 ## Build Notes
 
 The Docker app image has been verified to build successfully in the containerized path.
@@ -201,6 +207,7 @@ There are still a few production-readiness concerns to address:
 ## Known Gaps
 
 - License Manager is not complete yet.
+- Products / Application is currently a dummy page only and does not persist records yet.
 - Global search is still a placeholder.
 - Advanced filtering and toast notifications are still pending.
 - Production deployment needs ingress, backup, and operational hardening work.
@@ -209,11 +216,12 @@ There are still a few production-readiness concerns to address:
 
 The next major priorities are:
 
-1. finish license CRUD and related APIs
-2. complete private IP management flows
-3. add expired and expiring operational widgets to the dashboard
-4. implement global search
-5. harden production deployment and operations
+1. move Products / Application from dummy page to real schema and CRUD
+2. finish license CRUD and related APIs
+3. complete private IP management flows
+4. add expired and expiring operational widgets to the dashboard
+5. implement global search
+6. harden production deployment and operations
 
 See [milestones.md](./milestones.md) for the milestone-plus-deliverables plan.
 

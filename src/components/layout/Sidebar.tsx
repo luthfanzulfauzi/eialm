@@ -4,7 +4,7 @@ import { useSidebarStore } from "@/store/useSidebarStore";
 import { cn } from "@/lib/utils";
 import { 
   LayoutDashboard, Server, Shield, Key, Settings, 
-  ChevronLeft, LogOut, Users, ChevronDown, Database, Warehouse, Box, Globe
+  ChevronLeft, LogOut, Users, ChevronDown, Database, Warehouse, Box, Globe, Boxes
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -40,6 +40,7 @@ export const Sidebar = () => {
     if (pathname.includes("/assets")) activeMenus.push("Hardware");
     if (pathname.includes("/datacenters/")) activeMenus.push("Datacenters");
     if (pathname.includes("/network/")) activeMenus.push("Networking");
+    if (pathname.includes("/products")) activeMenus.push("Products / Application");
     setOpenSubMenus(prev => Array.from(new Set([...prev, ...activeMenus])));
   }, [pathname]);
 
@@ -91,6 +92,12 @@ export const Sidebar = () => {
           icon: Shield,
         },
       ],
+    },
+    {
+      name: "Products / Application",
+      icon: Boxes,
+      path: "/products",
+      roles: ["ADMIN", "OPERATOR", "VIEWER"],
     },
     { name: "Licenses", icon: Key, path: "/licenses", roles: ["ADMIN", "OPERATOR", "VIEWER"] },
     { name: "Users", icon: Users, path: "/users", roles: ["ADMIN"] },

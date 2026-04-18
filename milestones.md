@@ -186,7 +186,38 @@ Manage public and private address inventory, assignment, reservation, and operat
 
 ---
 
-## Milestone 5: License & Maintenance Management (65% Complete)
+## Milestone 5: Products & Application Portfolio (15% Complete)
+
+**Goal**
+
+Add a dedicated portfolio layer for managing business products and applications, with clear relationships to existing infrastructure, licensing, network, and ownership data.
+
+**Current State**
+
+- [x] A first-pass dummy dashboard page now exists for the new Products / Application main feature.
+- [x] The module is visible from the main navigation as a first-class feature area.
+- [x] The placeholder page documents the intended relationship model with assets, licenses, IPs, locations, owners, and compliance controls.
+- [ ] No database schema or API routes exist for product/application data yet.
+- [ ] No CRUD flows or persisted relationships have been implemented yet.
+
+**Deliverables**
+
+- [x] Main navigation entry for Products / Application
+- [x] Dummy planning page for the new module
+- [ ] Initial `Product` or `Application` schema design
+- [ ] CRUD UI and API for product/application records
+- [ ] Relation mapping to assets and licenses
+- [ ] Ownership model for business and technical contacts
+- [ ] Optional relation mapping to IPs, locations, and compliance metadata
+
+**Exit Criteria**
+
+- The platform can store and manage product/application portfolio records as first-class entities.
+- Products/applications can be linked to relevant infrastructure, license, and ownership data without duplicating existing records.
+
+---
+
+## Milestone 6: License & Maintenance Management (65% Complete)
 
 **Goal**
 
@@ -218,7 +249,7 @@ Manage license lifecycle, expiration risk, and maintenance/repair workflows for 
 
 ---
 
-## Milestone 6: Dashboard, Search & UX Completion (55% Complete)
+## Milestone 7: Dashboard, Search & UX Completion (55% Complete)
 
 **Goal**
 
@@ -257,7 +288,7 @@ Align the application experience with the original system design for visibility,
 
 ---
 
-## Milestone 7: Deployment & Production Readiness (35% Complete)
+## Milestone 8: Deployment & Production Readiness (35% Complete)
 
 **Goal**
 
@@ -299,12 +330,14 @@ Move from containerized development readiness to production-safe deployment and 
 
 Focus:
 
+- Establish the first persisted implementation slice for Products / Application
 - Finish missing license backend and UI flows
 - Finish private IP create/manage flows
 - Tighten incomplete asset/facility workflows
 
 Target deliverables:
 
+- initial product/application schema and CRUD baseline
 - `/api/licenses` route set
 - license CRUD UI
 - private IP registration flow
@@ -348,10 +381,11 @@ Target deliverables:
 ## Immediate Next Deliverables
 
 1. Implement license API routes and make the License Manager fully operational.
-2. Complete private IP registration and management beyond listing/search.
-3. Add missing dashboard sections for expired and expiring operational data.
-4. Replace the placeholder global search with a real cross-module search flow.
-5. Harden Docker-to-production deployment assumptions.
+2. Move Products / Application from dummy page to persisted schema and CRUD baseline.
+3. Complete private IP registration and management beyond listing/search.
+4. Add missing dashboard sections for expired and expiring operational data.
+5. Replace the placeholder global search with a real cross-module search flow.
+6. Harden Docker-to-production deployment assumptions.
 
 ---
 
