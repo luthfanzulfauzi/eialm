@@ -26,6 +26,14 @@ type AssetOption = {
   status: string;
 };
 
+type ProductOption = {
+  id: string;
+  name: string;
+  code: string;
+  lifecycle: string;
+  criticality: string;
+};
+
 type LicenseRecord = {
   id: string;
   name: string;
@@ -35,6 +43,7 @@ type LicenseRecord = {
   isExpired: boolean;
   assetId: string | null;
   asset?: AssetOption | null;
+  products: ProductOption[];
   createdAt: string;
   updatedAt: string;
 };
@@ -53,6 +62,7 @@ type LicenseFormState = {
   licenseFile: string;
   expiryDate: string;
   assetId: string;
+  productIds: string[];
 };
 
 const emptyForm: LicenseFormState = {
@@ -61,6 +71,7 @@ const emptyForm: LicenseFormState = {
   licenseFile: "",
   expiryDate: "",
   assetId: "",
+  productIds: [],
 };
 
 const expiringSoonMs = 30 * 24 * 60 * 60 * 1000;
@@ -84,6 +95,7 @@ export default function LicensePage() {
   const { data: session } = useSession();
   const [licenses, setLicenses] = useState<LicenseRecord[]>([]);
   const [assets, setAssets] = useState<AssetOption[]>([]);
+  const [products, setProducts] = useState<ProductOption[]>([]);
   const [summary, setSummary] = useState<LicenseSummary>({
     total: 0,
     active: 0,
@@ -122,6 +134,7 @@ export default function LicensePage() {
 
       setLicenses(payload.licenses || []);
       setAssets(payload.assets || []);
+      setProducts(payload.products || []);
       setSummary(
         payload.summary || {
           total: 0,
@@ -152,7 +165,7 @@ export default function LicensePage() {
       if (filter === "active") return state === "active";
       if (filter === "expiring") return state === "expiring";
       if (filter === "expired") return state === "expired";
-      if (filter === "unassigned") return !license.assetId;
+      if (filter === "unassigned") return !license.assetId && license.products.length === 0;
       return true;
     });
   }, [filter, licenses]);
@@ -172,6 +185,7 @@ export default function LicensePage() {
       licenseFile: license.licenseFile || "",
       expiryDate: license.expiryDate ? format(new Date(license.expiryDate), "yyyy-MM-dd") : "",
       assetId: license.assetId || "",
+      productIds: license.products.map((product) => product.id),
     });
     setFormError(null);
     setIsModalOpen(true);
@@ -206,6 +220,7 @@ export default function LicensePage() {
           licenseFile: form.licenseFile.trim() || null,
           expiryDate: form.expiryDate || null,
           assetId: form.assetId || null,
+          productIds: form.productIds,
         }),
       });
 
@@ -379,13 +394,14 @@ export default function LicensePage() {
                 <th className="px-6 py-4 font-semibold">Status</th>
                 <th className="px-6 py-4 font-semibold">Expiry</th>
                 <th className="px-6 py-4 font-semibold">Assigned Asset</th>
+                <th className="px-6 py-4 font-semibold">Related Products</th>
                 <th className="px-6 py-4 font-semibold text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800">
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-sm text-slate-500">
+                  <td colSpan={6} className="px-6 py-12 text-center text-sm text-slate-500">
                     Loading licenses...
                   </td>
                 </tr>
@@ -393,7 +409,7 @@ export default function LicensePage() {
 
               {!loading && filteredLicenses.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-sm text-slate-500">
+                  <td colSpan={6} className="px-6 py-12 text-center text-sm text-slate-500">
                     No licenses match this view yet.
                   </td>
                 </tr>
@@ -462,6 +478,22 @@ export default function LicensePage() {
                       )}
                     </td>
                     <td className="px-6 py-5">
+                      {license.products.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                          {license.products.map((product) => (
+                            <span
+                              key={product.id}
+                              className="rounded-full border border-cyan-500/20 bg-cyan-500/10 px-3 py-1 text-xs text-cyan-100"
+                            >
+                              {product.name} · {product.code}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-sm text-slate-500">No product links</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-5">
                       <div className="flex justify-end gap-2">
                         {canManage && (
                           <>
@@ -514,12 +546,12 @@ export default function LicensePage() {
           <div>
             <h2 className="text-lg font-bold text-white">Coverage Snapshot</h2>
             <p className="text-sm text-slate-500">
-              {summary.unassigned} unassigned license{summary.unassigned === 1 ? "" : "s"} still need placement.
+              {summary.unassigned} unassigned license{summary.unassigned === 1 ? "" : "s"} still need asset or product linkage.
             </p>
           </div>
           <div className="text-right">
-            <p className="text-2xl font-bold text-white">{assets.length}</p>
-            <p className="text-xs uppercase tracking-wider text-slate-500">Available Assets</p>
+            <p className="text-2xl font-bold text-white">{assets.length + products.length}</p>
+            <p className="text-xs uppercase tracking-wider text-slate-500">Linkable Records</p>
           </div>
         </div>
       </div>
@@ -593,6 +625,45 @@ export default function LicensePage() {
                   </option>
                 ))}
               </select>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/30 p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <h4 className="text-sm font-bold text-white">Related Products</h4>
+              <span className="text-xs text-slate-500">{form.productIds.length} selected</span>
+            </div>
+            <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
+              {products.length > 0 ? (
+                products.map((product) => (
+                  <label
+                    key={product.id}
+                    className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-3 py-3 text-sm text-slate-300"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={form.productIds.includes(product.id)}
+                      onChange={() =>
+                        setForm((current) => ({
+                          ...current,
+                          productIds: current.productIds.includes(product.id)
+                            ? current.productIds.filter((value) => value !== product.id)
+                            : [...current.productIds, product.id],
+                        }))
+                      }
+                      className="mt-1"
+                    />
+                    <div>
+                      <div className="font-medium text-white">{product.name}</div>
+                      <div className="text-xs text-slate-500">
+                        {product.code} · {product.lifecycle.toLowerCase()} · {product.criticality.toLowerCase()}
+                      </div>
+                    </div>
+                  </label>
+                ))
+              ) : (
+                <p className="text-sm text-slate-500">No products available for linking yet.</p>
+              )}
             </div>
           </div>
 

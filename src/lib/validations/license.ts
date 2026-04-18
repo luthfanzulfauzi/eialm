@@ -31,12 +31,24 @@ const optionalDate = z.preprocess((value) => {
   return value;
 }, z.date().optional());
 
+const relationIdList = z.preprocess((value) => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return Array.from(new Set(value
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim())
+    .filter(Boolean)));
+}, z.array(z.string()));
+
 export const licenseSchema = z.object({
   name: z.string().trim().min(2, "License name must be at least 2 characters."),
   key: optionalTrimmedString,
   licenseFile: optionalTrimmedString,
   expiryDate: optionalDate,
   assetId: optionalTrimmedString,
+  productIds: relationIdList,
 });
 
 export const licenseUpdateSchema = licenseSchema.partial().refine((data) => {

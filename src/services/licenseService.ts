@@ -23,6 +23,36 @@ const toStoredExpiry = (expiryDate?: Date) => {
   };
 };
 
+const licenseInclude = {
+  asset: {
+    select: { id: true, name: true, serialNumber: true, status: true },
+  },
+  products: {
+    select: {
+      id: true,
+      name: true,
+      code: true,
+      lifecycle: true,
+      criticality: true,
+    },
+    orderBy: {
+      name: "asc" as const,
+    },
+  },
+} as const;
+
+const ensureProductsExist = async (productIds: string[]) => {
+  const count = await prisma.product.count({
+    where: {
+      id: { in: productIds },
+    },
+  });
+
+  if (count !== productIds.length) {
+    throw new Error("One or more selected products no longer exist.");
+  }
+};
+
 export const LicenseService = {
   async refreshExpiryStatuses() {
     const now = new Date();
@@ -62,11 +92,7 @@ export const LicenseService = {
     await this.refreshExpiryStatuses();
 
     return await prisma.license.findMany({
-      include: {
-        asset: {
-          select: { id: true, name: true, serialNumber: true, status: true },
-        },
-      },
+      include: licenseInclude,
       orderBy: [
         { isExpired: "desc" },
         { expiryDate: "asc" },
@@ -76,7 +102,7 @@ export const LicenseService = {
   },
 
   async getLicenseManagerData() {
-    const [licenses, assets] = await Promise.all([
+    const [licenses, assets, products] = await Promise.all([
       this.getLicenses(),
       prisma.asset.findMany({
         select: {
@@ -84,6 +110,16 @@ export const LicenseService = {
           name: true,
           serialNumber: true,
           status: true,
+        },
+        orderBy: { name: "asc" },
+      }),
+      prisma.product.findMany({
+        select: {
+          id: true,
+          name: true,
+          code: true,
+          lifecycle: true,
+          criticality: true,
         },
         orderBy: { name: "asc" },
       }),
@@ -99,7 +135,7 @@ export const LicenseService = {
         acc.total += 1;
         if (license.isExpired) acc.expired += 1;
         if (isExpiringSoon) acc.expiringSoon += 1;
-        if (!license.assetId) acc.unassigned += 1;
+        if (!license.assetId && license.products.length === 0) acc.unassigned += 1;
         if (!license.isExpired && !isExpiringSoon) acc.active += 1;
         return acc;
       },
@@ -112,10 +148,11 @@ export const LicenseService = {
       }
     );
 
-    return { licenses, assets, summary };
+    return { licenses, assets, products, summary };
   },
 
   async createLicense(data: LicenseFormValues) {
+    await ensureProductsExist(data.productIds);
     const normalized = toStoredExpiry(data.expiryDate);
 
     return await prisma.license.create({
@@ -126,16 +163,19 @@ export const LicenseService = {
         expiryDate: normalized.expiryDate,
         assetId: data.assetId || null,
         isExpired: normalized.isExpired,
-      },
-      include: {
-        asset: {
-          select: { id: true, name: true, serialNumber: true, status: true },
+        products: {
+          connect: data.productIds.map((id) => ({ id })),
         },
       },
+      include: licenseInclude,
     });
   },
 
   async updateLicense(id: string, data: LicenseUpdateValues) {
+    if (data.productIds !== undefined) {
+      await ensureProductsExist(data.productIds);
+    }
+
     const payload: Record<string, unknown> = {};
 
     if (data.name !== undefined) payload.name = data.name;
@@ -147,15 +187,16 @@ export const LicenseService = {
       payload.expiryDate = normalized.expiryDate;
       payload.isExpired = normalized.isExpired;
     }
+    if (data.productIds !== undefined) {
+      payload.products = {
+        set: data.productIds.map((relationId) => ({ id: relationId })),
+      };
+    }
 
     return await prisma.license.update({
       where: { id },
       data: payload,
-      include: {
-        asset: {
-          select: { id: true, name: true, serialNumber: true, status: true },
-        },
-      },
+      include: licenseInclude,
     });
   },
 
@@ -182,11 +223,7 @@ export const LicenseService = {
       data: {
         assetId: assetId || null,
       },
-      include: {
-        asset: {
-          select: { id: true, name: true, serialNumber: true, status: true },
-        },
-      },
+      include: licenseInclude,
     });
   },
 
