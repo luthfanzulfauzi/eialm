@@ -186,7 +186,7 @@ Manage public and private address inventory, assignment, reservation, and operat
 
 ---
 
-## Milestone 5: License & Maintenance Management (25% Complete)
+## Milestone 5: License & Maintenance Management (65% Complete)
 
 **Goal**
 
@@ -196,24 +196,24 @@ Manage license lifecycle, expiration risk, and maintenance/repair workflows for 
 
 - [x] License schema and basic service layer exist.
 - [x] License counts appear in dashboard metrics.
-- [ ] Working license API routes are still missing.
-- [ ] License CRUD and assignment UX are incomplete.
-- [ ] Expiration views and automation are not yet implemented.
+- [x] Working license API routes now support list, create, update, delete, and assignment.
+- [x] License CRUD and assignment UX are now available in the dashboard.
+- [x] Expiration views are now visible in the license manager, with server-side expiry refresh on access.
 - [ ] Maintenance scheduling/history and broken-repair workflow are not yet implemented.
 
 **Deliverables**
 
-- [ ] `/api/licenses` route set for list, create, update, delete, and assignment
-- [ ] License manager UI with create/edit/delete flows
-- [ ] Asset-to-license assignment workflow
-- [ ] Expiring and expired license views
+- [x] `/api/licenses` route set for list, create, update, delete, and assignment
+- [x] License manager UI with create/edit/delete flows
+- [x] Asset-to-license assignment workflow
+- [x] Expiring and expired license views
 - [ ] Expiration refresh/notification job or scheduled logic
 - [ ] Maintenance scheduling model and UI
 - [ ] Broken/repair operational workflow and dedicated views
 
 **Exit Criteria**
 
-- License pages are fully functional end-to-end.
+- [x] License pages are fully functional end-to-end.
 - Expiration risk and maintenance work are visible and actionable inside the product.
 
 ---
