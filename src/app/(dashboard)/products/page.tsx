@@ -1,177 +1,824 @@
 "use client";
 
-import { Boxes, Database, Globe, Key, Link2, MapPin, Server, ShieldCheck, Users } from "lucide-react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useSession } from "next-auth/react";
+import {
+  Boxes,
+  FileText,
+  Layers3,
+  Link2,
+  Loader2,
+  Pencil,
+  Plus,
+  ShieldAlert,
+  Trash2,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Modal } from "@/components/ui/Modal";
+import { cn } from "@/lib/utils";
 
-const plannedRelations = [
-  {
-    title: "Infrastructure Assets",
-    description:
-      "Link a product or application to servers, appliances, storage nodes, or other managed hardware that host or support it.",
-    icon: Server,
-    accent: "text-blue-400 border-blue-500/20 bg-blue-500/10",
-    status: "Planned relation",
-  },
-  {
-    title: "Licenses",
-    description:
-      "Associate product records with subscription, support, or license contracts for renewal and compliance visibility.",
-    icon: Key,
-    accent: "text-amber-400 border-amber-500/20 bg-amber-500/10",
-    status: "Planned relation",
-  },
-  {
-    title: "Network Footprint",
-    description:
-      "Connect applications to public or private IP usage, service endpoints, and networking dependencies.",
-    icon: Globe,
-    accent: "text-emerald-400 border-emerald-500/20 bg-emerald-500/10",
-    status: "Planned relation",
-  },
-  {
-    title: "Ownership & Access",
-    description:
-      "Define technical owners, business owners, operators, and support users responsible for each product or application.",
-    icon: Users,
-    accent: "text-fuchsia-400 border-fuchsia-500/20 bg-fuchsia-500/10",
-    status: "Planned relation",
-  },
-  {
-    title: "Deployment Locations",
-    description:
-      "Reference datacenters, warehouses, or future cloud zones where application-supporting infrastructure exists.",
-    icon: MapPin,
-    accent: "text-cyan-400 border-cyan-500/20 bg-cyan-500/10",
-    status: "Planned relation",
-  },
-  {
-    title: "Compliance & Controls",
-    description:
-      "Track security posture, criticality, data classification, and operational controls for each application portfolio item.",
-    icon: ShieldCheck,
-    accent: "text-rose-400 border-rose-500/20 bg-rose-500/10",
-    status: "Planned relation",
-  },
-];
+type ProductEnvironment = "PRODUCTION" | "STAGING" | "DEVELOPMENT" | "SHARED";
+type ProductLifecycle = "PLANNING" | "ACTIVE" | "MAINTENANCE" | "RETIRED";
+type ProductCriticality = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 
-const plannedFields = [
-  "Product / application name",
-  "Short code or identifier",
-  "Category and business domain",
-  "Environment scope",
-  "Criticality tier",
-  "Business owner and technical owner",
-  "Related assets and IPs",
-  "Related licenses",
-  "Status and lifecycle stage",
-  "Notes, dependencies, and documentation links",
-];
+type AssetOption = {
+  id: string;
+  name: string;
+  serialNumber: string;
+  status: string;
+  category: string;
+};
+
+type LicenseOption = {
+  id: string;
+  name: string;
+  key: string | null;
+  isExpired: boolean;
+  expiryDate: string | null;
+};
+
+type ProductRecord = {
+  id: string;
+  name: string;
+  code: string;
+  description: string | null;
+  category: string;
+  businessDomain: string | null;
+  environment: ProductEnvironment;
+  lifecycle: ProductLifecycle;
+  criticality: ProductCriticality;
+  businessOwner: string;
+  technicalOwner: string;
+  supportTeam: string | null;
+  documentationUrl: string | null;
+  notes: string | null;
+  assets: AssetOption[];
+  licenses: LicenseOption[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+type ProductSummary = {
+  total: number;
+  active: number;
+  planning: number;
+  critical: number;
+  unmapped: number;
+};
+
+type ProductFormState = {
+  name: string;
+  code: string;
+  description: string;
+  category: string;
+  businessDomain: string;
+  environment: ProductEnvironment;
+  lifecycle: ProductLifecycle;
+  criticality: ProductCriticality;
+  businessOwner: string;
+  technicalOwner: string;
+  supportTeam: string;
+  documentationUrl: string;
+  notes: string;
+  assetIds: string[];
+  licenseIds: string[];
+};
+
+const emptyForm: ProductFormState = {
+  name: "",
+  code: "",
+  description: "",
+  category: "",
+  businessDomain: "",
+  environment: "PRODUCTION",
+  lifecycle: "PLANNING",
+  criticality: "MEDIUM",
+  businessOwner: "",
+  technicalOwner: "",
+  supportTeam: "",
+  documentationUrl: "",
+  notes: "",
+  assetIds: [],
+  licenseIds: [],
+};
+
+const lifecycleOptions: ProductLifecycle[] = ["PLANNING", "ACTIVE", "MAINTENANCE", "RETIRED"];
+const environmentOptions: ProductEnvironment[] = ["PRODUCTION", "STAGING", "DEVELOPMENT", "SHARED"];
+const criticalityOptions: ProductCriticality[] = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
+
+const lifecycleTone: Record<ProductLifecycle, string> = {
+  PLANNING: "border-amber-500/20 bg-amber-500/10 text-amber-300",
+  ACTIVE: "border-emerald-500/20 bg-emerald-500/10 text-emerald-300",
+  MAINTENANCE: "border-blue-500/20 bg-blue-500/10 text-blue-300",
+  RETIRED: "border-slate-700 bg-slate-800/60 text-slate-300",
+};
+
+const criticalityTone: Record<ProductCriticality, string> = {
+  LOW: "text-slate-300",
+  MEDIUM: "text-blue-300",
+  HIGH: "text-amber-300",
+  CRITICAL: "text-red-300",
+};
+
+const formatEnum = (value: string) => value.toLowerCase().replace(/_/g, " ");
+
+const toggleRelation = (currentValues: string[], relationId: string) => {
+  return currentValues.includes(relationId)
+    ? currentValues.filter((value) => value !== relationId)
+    : [...currentValues, relationId];
+};
 
 export default function ProductsPage() {
+  const { data: session } = useSession();
+  const [products, setProducts] = useState<ProductRecord[]>([]);
+  const [assets, setAssets] = useState<AssetOption[]>([]);
+  const [licenses, setLicenses] = useState<LicenseOption[]>([]);
+  const [summary, setSummary] = useState<ProductSummary>({
+    total: 0,
+    active: 0,
+    planning: 0,
+    critical: 0,
+    unmapped: 0,
+  });
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [lifecycleFilter, setLifecycleFilter] = useState<"ALL" | ProductLifecycle>("ALL");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<ProductRecord | null>(null);
+  const [form, setForm] = useState<ProductFormState>(emptyForm);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const canManage = session?.user?.role === "ADMIN" || session?.user?.role === "OPERATOR";
+
+  const fetchProducts = async (background = false) => {
+    try {
+      setError(null);
+      if (background) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+
+      const res = await fetch("/api/products", { cache: "no-store" });
+      const payload = await res.json().catch(() => ({} as any));
+      if (!res.ok) {
+        throw new Error(payload?.error || "Failed to load product portfolio");
+      }
+
+      setProducts(payload.products || []);
+      setAssets(payload.assets || []);
+      setLicenses(payload.licenses || []);
+      setSummary(
+        payload.summary || {
+          total: 0,
+          active: 0,
+          planning: 0,
+          critical: 0,
+          unmapped: 0,
+        }
+      );
+    } catch (fetchError) {
+      setError(fetchError instanceof Error ? fetchError.message : "Failed to load product portfolio");
+    } finally {
+      if (background) {
+        setRefreshing(false);
+      } else {
+        setLoading(false);
+      }
+    }
+  };
+
+  useEffect(() => {
+    void fetchProducts();
+  }, []);
+
+  const filteredProducts = useMemo(() => {
+    const normalizedSearch = search.trim().toLowerCase();
+
+    return products.filter((product) => {
+      const matchesLifecycle =
+        lifecycleFilter === "ALL" ? true : product.lifecycle === lifecycleFilter;
+
+      if (!matchesLifecycle) {
+        return false;
+      }
+
+      if (!normalizedSearch) {
+        return true;
+      }
+
+      const haystack = [
+        product.name,
+        product.code,
+        product.category,
+        product.businessDomain || "",
+        product.businessOwner,
+        product.technicalOwner,
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      return haystack.includes(normalizedSearch);
+    });
+  }, [lifecycleFilter, products, search]);
+
+  const openCreateModal = () => {
+    setEditingProduct(null);
+    setForm(emptyForm);
+    setFormError(null);
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (product: ProductRecord) => {
+    setEditingProduct(product);
+    setForm({
+      name: product.name,
+      code: product.code,
+      description: product.description || "",
+      category: product.category,
+      businessDomain: product.businessDomain || "",
+      environment: product.environment,
+      lifecycle: product.lifecycle,
+      criticality: product.criticality,
+      businessOwner: product.businessOwner,
+      technicalOwner: product.technicalOwner,
+      supportTeam: product.supportTeam || "",
+      documentationUrl: product.documentationUrl || "",
+      notes: product.notes || "",
+      assetIds: product.assets.map((asset) => asset.id),
+      licenseIds: product.licenses.map((license) => license.id),
+    });
+    setFormError(null);
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setEditingProduct(null);
+    setForm(emptyForm);
+    setFormError(null);
+  };
+
+  const handleSave = async (e: FormEvent) => {
+    e.preventDefault();
+    setFormError(null);
+
+    if (!form.name.trim() || !form.code.trim() || !form.category.trim()) {
+      setFormError("Name, code, and category are required.");
+      return;
+    }
+
+    if (!form.businessOwner.trim() || !form.technicalOwner.trim()) {
+      setFormError("Business owner and technical owner are required.");
+      return;
+    }
+
+    try {
+      setSaving(true);
+      const endpoint = editingProduct ? `/api/products/${editingProduct.id}` : "/api/products";
+      const method = editingProduct ? "PATCH" : "POST";
+      const res = await fetch(endpoint, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...form,
+          name: form.name.trim(),
+          code: form.code.trim().toUpperCase(),
+          description: form.description.trim() || null,
+          category: form.category.trim(),
+          businessDomain: form.businessDomain.trim() || null,
+          businessOwner: form.businessOwner.trim(),
+          technicalOwner: form.technicalOwner.trim(),
+          supportTeam: form.supportTeam.trim() || null,
+          documentationUrl: form.documentationUrl.trim() || null,
+          notes: form.notes.trim() || null,
+        }),
+      });
+
+      const payload = await res.json().catch(() => ({} as any));
+      if (!res.ok) {
+        throw new Error(payload?.error || "Failed to save product");
+      }
+
+      closeModal();
+      await fetchProducts(true);
+    } catch (saveError) {
+      setFormError(saveError instanceof Error ? saveError.message : "Failed to save product");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (product: ProductRecord) => {
+    const confirmed = window.confirm(`Delete product "${product.name}"?`);
+    if (!confirmed) return;
+
+    try {
+      setDeletingId(product.id);
+      const res = await fetch(`/api/products/${product.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const payload = await res.json().catch(() => ({} as any));
+        throw new Error(payload?.error || "Failed to delete product");
+      }
+      await fetchProducts(true);
+    } catch (deleteError) {
+      window.alert(deleteError instanceof Error ? deleteError.message : "Failed to delete product");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const stats = [
+    {
+      label: "Portfolio Items",
+      value: summary.total,
+      icon: Boxes,
+      tone: "text-blue-400 bg-blue-500/10",
+    },
+    {
+      label: "Active",
+      value: summary.active,
+      icon: Layers3,
+      tone: "text-emerald-400 bg-emerald-500/10",
+    },
+    {
+      label: "Planning",
+      value: summary.planning,
+      icon: FileText,
+      tone: "text-amber-400 bg-amber-500/10",
+    },
+    {
+      label: "Critical",
+      value: summary.critical,
+      icon: ShieldAlert,
+      tone: "text-red-400 bg-red-500/10",
+    },
+  ];
+
   return (
-    <div className="space-y-8">
-      <section className="rounded-3xl border border-slate-800 bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.16),_transparent_34%),linear-gradient(180deg,_rgba(15,23,42,0.94),_rgba(8,11,18,0.96))] p-8 shadow-2xl">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-3xl space-y-4">
-            <div className="inline-flex items-center gap-2 rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-blue-300">
+    <div className="space-y-6">
+      <section className="rounded-3xl border border-slate-800 bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.14),_transparent_28%),linear-gradient(180deg,_rgba(15,23,42,0.94),_rgba(8,11,18,0.96))] p-8 shadow-2xl">
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+          <div className="max-w-3xl space-y-3">
+            <div className="inline-flex items-center gap-2 rounded-full border border-cyan-500/20 bg-cyan-500/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-cyan-300">
               <Boxes size={14} />
-              New Main Feature
+              Milestone 5
             </div>
-            <div className="space-y-3">
+            <div>
               <h1 className="text-3xl font-bold tracking-tight text-white">Products / Application Portfolio</h1>
-              <p className="max-w-2xl text-sm leading-6 text-slate-300">
-                This is the first implementation pass for managing products and business applications inside EIALM.
-                The page is intentionally a dummy planning surface for now, designed to show how this module will
-                connect to infrastructure, licensing, ownership, and network data that already exist in the platform.
+              <p className="mt-2 text-sm leading-6 text-slate-300">
+                Manage business-facing products as first-class records, then map them to the assets,
+                licenses, and ownership context already tracked in EIALM.
               </p>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <div className="rounded-2xl border border-slate-800 bg-slate-950/40 px-4 py-4">
-              <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Status</div>
-              <div className="mt-2 text-lg font-bold text-white">Dummy</div>
-            </div>
-            <div className="rounded-2xl border border-slate-800 bg-slate-950/40 px-4 py-4">
-              <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Portfolio Items</div>
-              <div className="mt-2 text-lg font-bold text-white">0</div>
-            </div>
-            <div className="rounded-2xl border border-slate-800 bg-slate-950/40 px-4 py-4">
-              <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Relations</div>
-              <div className="mt-2 text-lg font-bold text-white">6</div>
-            </div>
-            <div className="rounded-2xl border border-slate-800 bg-slate-950/40 px-4 py-4">
-              <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Next Step</div>
-              <div className="mt-2 text-lg font-bold text-white">Schema</div>
-            </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button variant="outline" onClick={() => void fetchProducts(true)} disabled={refreshing || loading}>
+              {refreshing ? <Loader2 size={16} className="mr-2 animate-spin" /> : <Link2 size={16} className="mr-2" />}
+              Refresh
+            </Button>
+            {canManage && (
+              <Button onClick={openCreateModal}>
+                <Plus size={16} className="mr-2" />
+                Add Product
+              </Button>
+            )}
           </div>
         </div>
       </section>
 
-      <section className="grid grid-cols-1 gap-6 xl:grid-cols-[1.45fr_0.95fr]">
-        <div className="rounded-3xl border border-slate-800 bg-[#111620] p-6 shadow-xl">
-          <div className="mb-5 flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-bold text-white">Planned Relationship Model</h2>
-              <p className="text-sm text-slate-500">How the future product/application module should connect to existing EIALM data</p>
-            </div>
-            <div className="hidden rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 sm:block">
-              Planning Mode
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {plannedRelations.map((item) => (
-              <article key={item.title} className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5">
-                <div className="mb-4 flex items-start justify-between gap-3">
-                  <div className={`inline-flex rounded-xl border p-3 ${item.accent}`}>
-                    <item.icon size={18} />
-                  </div>
-                  <span className="rounded-full border border-slate-700 bg-slate-950/70 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
-                    {item.status}
-                  </span>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {stats.map((stat) => {
+          const Icon = stat.icon;
+          return (
+            <div key={stat.label} className="rounded-2xl border border-slate-800 bg-[#151921] p-5 shadow-xl">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">{stat.label}</p>
+                  <p className="mt-3 text-3xl font-bold text-white">{stat.value}</p>
                 </div>
-                <h3 className="text-sm font-bold text-white">{item.title}</h3>
-                <p className="mt-2 text-sm leading-6 text-slate-400">{item.description}</p>
-              </article>
-            ))}
-          </div>
-        </div>
-
-        <div className="space-y-6">
-          <section className="rounded-3xl border border-slate-800 bg-[#111620] p-6 shadow-xl">
-            <div className="flex items-center gap-3">
-              <div className="rounded-xl border border-slate-700 bg-slate-900/70 p-3 text-slate-300">
-                <Database size={18} />
-              </div>
-              <div>
-                <h2 className="text-lg font-bold text-white">Suggested First Data Shape</h2>
-                <p className="text-sm text-slate-500">Recommended attributes for the initial schema and forms</p>
+                <div className={cn("rounded-2xl p-3", stat.tone)}>
+                  <Icon size={18} />
+                </div>
               </div>
             </div>
+          );
+        })}
+      </div>
 
-            <div className="mt-5 space-y-2">
-              {plannedFields.map((field) => (
-                <div
-                  key={field}
-                  className="flex items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900/40 px-4 py-3 text-sm text-slate-300"
-                >
-                  <Link2 size={14} className="text-slate-500" />
-                  <span>{field}</span>
-                </div>
+      <section className="rounded-3xl border border-slate-800 bg-[#111620] p-6 shadow-xl">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-1 flex-col gap-3 sm:flex-row">
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by name, code, category, or owner"
+              className="sm:max-w-md"
+            />
+            <select
+              value={lifecycleFilter}
+              onChange={(e) => setLifecycleFilter(e.target.value as "ALL" | ProductLifecycle)}
+              className="flex h-10 rounded-lg border border-slate-800 bg-slate-900/50 px-3 py-2 text-sm text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:border-blue-500 transition-all"
+            >
+              <option value="ALL">All lifecycle states</option>
+              {lifecycleOptions.map((option) => (
+                <option key={option} value={option}>
+                  {formatEnum(option)}
+                </option>
               ))}
-            </div>
-          </section>
+            </select>
+          </div>
 
-          <section className="rounded-3xl border border-dashed border-blue-500/25 bg-blue-500/5 p-6">
-            <h2 className="text-lg font-bold text-white">Recommended Next Implementation Slice</h2>
-            <div className="mt-4 space-y-3 text-sm leading-6 text-slate-300">
-              <p>Start with a dedicated `Product` model and optional relation tables rather than embedding product data into assets or licenses.</p>
-              <p>In the next real implementation pass, add product CRUD, ownership fields, lifecycle status, and many-to-many links to assets and licenses first.</p>
-              <p>After that, extend the module with dependency mapping, IP linkage, compliance metadata, and dashboard visibility.</p>
-            </div>
-          </section>
+          <div className="rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
+            Unmapped portfolio items: {summary.unmapped}
+          </div>
         </div>
       </section>
+
+      {error ? (
+        <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+          {error}
+        </div>
+      ) : null}
+
+      <section className="space-y-4">
+        {loading ? (
+          <div className="rounded-3xl border border-slate-800 bg-[#111620] p-10 text-center text-sm text-slate-400">
+            Loading product portfolio...
+          </div>
+        ) : filteredProducts.length === 0 ? (
+          <div className="rounded-3xl border border-dashed border-slate-700 bg-[#111620] p-10 text-center">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-slate-800 bg-slate-900/70 text-slate-400">
+              <Boxes size={22} />
+            </div>
+            <h2 className="mt-4 text-lg font-bold text-white">No portfolio items found</h2>
+            <p className="mt-2 text-sm text-slate-500">
+              Adjust the filters or create the first product/application record for this environment.
+            </p>
+          </div>
+        ) : (
+          filteredProducts.map((product) => (
+            <article key={product.id} className="rounded-3xl border border-slate-800 bg-[#111620] p-6 shadow-xl">
+              <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+                <div className="space-y-4">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <h2 className="text-2xl font-bold text-white">{product.name}</h2>
+                    <span className="rounded-full border border-slate-700 bg-slate-900/70 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-300">
+                      {product.code}
+                    </span>
+                    <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em]", lifecycleTone[product.lifecycle])}>
+                      {formatEnum(product.lifecycle)}
+                    </span>
+                    <span className={cn("text-xs font-bold uppercase tracking-[0.2em]", criticalityTone[product.criticality])}>
+                      {formatEnum(product.criticality)}
+                    </span>
+                  </div>
+
+                  <p className="max-w-3xl text-sm leading-6 text-slate-400">
+                    {product.description || "No description provided yet."}
+                  </p>
+
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                    <div className="rounded-2xl border border-slate-800 bg-slate-900/40 px-4 py-3">
+                      <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Category</div>
+                      <div className="mt-2 text-sm font-medium text-white">{product.category}</div>
+                    </div>
+                    <div className="rounded-2xl border border-slate-800 bg-slate-900/40 px-4 py-3">
+                      <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Environment</div>
+                      <div className="mt-2 text-sm font-medium text-white">{formatEnum(product.environment)}</div>
+                    </div>
+                    <div className="rounded-2xl border border-slate-800 bg-slate-900/40 px-4 py-3">
+                      <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Business Owner</div>
+                      <div className="mt-2 text-sm font-medium text-white">{product.businessOwner}</div>
+                    </div>
+                    <div className="rounded-2xl border border-slate-800 bg-slate-900/40 px-4 py-3">
+                      <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Technical Owner</div>
+                      <div className="mt-2 text-sm font-medium text-white">{product.technicalOwner}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {canManage && (
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" onClick={() => openEditModal(product)}>
+                      <Pencil size={16} className="mr-2" />
+                      Edit
+                    </Button>
+                    <Button
+                      variant="danger"
+                      onClick={() => void handleDelete(product)}
+                      disabled={deletingId === product.id}
+                    >
+                      {deletingId === product.id ? <Loader2 size={16} className="mr-2 animate-spin" /> : <Trash2 size={16} className="mr-2" />}
+                      Delete
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-6 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+                <section className="rounded-2xl border border-slate-800 bg-slate-900/30 p-5">
+                  <div className="mb-4 flex items-center justify-between">
+                    <h3 className="text-sm font-bold text-white">Linked Assets</h3>
+                    <span className="text-xs text-slate-500">{product.assets.length} mapped</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {product.assets.length > 0 ? (
+                      product.assets.map((asset) => (
+                        <span
+                          key={asset.id}
+                          className="rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1 text-xs text-blue-100"
+                        >
+                          {asset.name} · {asset.serialNumber}
+                        </span>
+                      ))
+                    ) : (
+                      <p className="text-sm text-slate-500">No infrastructure assets linked yet.</p>
+                    )}
+                  </div>
+                </section>
+
+                <section className="rounded-2xl border border-slate-800 bg-slate-900/30 p-5">
+                  <div className="mb-4 flex items-center justify-between">
+                    <h3 className="text-sm font-bold text-white">Linked Licenses</h3>
+                    <span className="text-xs text-slate-500">{product.licenses.length} mapped</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {product.licenses.length > 0 ? (
+                      product.licenses.map((license) => (
+                        <span
+                          key={license.id}
+                          className={cn(
+                            "rounded-full border px-3 py-1 text-xs",
+                            license.isExpired
+                              ? "border-red-500/20 bg-red-500/10 text-red-100"
+                              : "border-emerald-500/20 bg-emerald-500/10 text-emerald-100"
+                          )}
+                        >
+                          {license.name}
+                        </span>
+                      ))
+                    ) : (
+                      <p className="text-sm text-slate-500">No licenses linked yet.</p>
+                    )}
+                  </div>
+                </section>
+              </div>
+            </article>
+          ))
+        )}
+      </section>
+
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => {
+          if (saving) return;
+          closeModal();
+        }}
+        title={editingProduct ? "Edit Product / Application" : "Create Product / Application"}
+      >
+        <form onSubmit={handleSave} className="space-y-6">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">Name</div>
+              <Input
+                value={form.name}
+                onChange={(e) => setForm((current) => ({ ...current, name: e.target.value }))}
+                placeholder="Billing Platform"
+                autoFocus
+              />
+            </div>
+
+            <div className="space-y-2">
+              <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">Code</div>
+              <Input
+                value={form.code}
+                onChange={(e) => setForm((current) => ({ ...current, code: e.target.value.toUpperCase() }))}
+                placeholder="BILLING-PRD"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">Category</div>
+              <Input
+                value={form.category}
+                onChange={(e) => setForm((current) => ({ ...current, category: e.target.value }))}
+                placeholder="Internal Platform"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">Business Domain</div>
+              <Input
+                value={form.businessDomain}
+                onChange={(e) => setForm((current) => ({ ...current, businessDomain: e.target.value }))}
+                placeholder="Finance"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">Environment</div>
+              <select
+                value={form.environment}
+                onChange={(e) => setForm((current) => ({ ...current, environment: e.target.value as ProductEnvironment }))}
+                className="flex h-10 w-full rounded-lg border border-slate-800 bg-slate-900/50 px-3 py-2 text-sm text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:border-blue-500 transition-all"
+              >
+                {environmentOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {formatEnum(option)}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">Lifecycle</div>
+              <select
+                value={form.lifecycle}
+                onChange={(e) => setForm((current) => ({ ...current, lifecycle: e.target.value as ProductLifecycle }))}
+                className="flex h-10 w-full rounded-lg border border-slate-800 bg-slate-900/50 px-3 py-2 text-sm text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:border-blue-500 transition-all"
+              >
+                {lifecycleOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {formatEnum(option)}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">Criticality</div>
+              <select
+                value={form.criticality}
+                onChange={(e) => setForm((current) => ({ ...current, criticality: e.target.value as ProductCriticality }))}
+                className="flex h-10 w-full rounded-lg border border-slate-800 bg-slate-900/50 px-3 py-2 text-sm text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:border-blue-500 transition-all"
+              >
+                {criticalityOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {formatEnum(option)}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">Support Team</div>
+              <Input
+                value={form.supportTeam}
+                onChange={(e) => setForm((current) => ({ ...current, supportTeam: e.target.value }))}
+                placeholder="Platform Operations"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">Business Owner</div>
+              <Input
+                value={form.businessOwner}
+                onChange={(e) => setForm((current) => ({ ...current, businessOwner: e.target.value }))}
+                placeholder="Business unit or contact"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">Technical Owner</div>
+              <Input
+                value={form.technicalOwner}
+                onChange={(e) => setForm((current) => ({ ...current, technicalOwner: e.target.value }))}
+                placeholder="Team or engineer"
+              />
+            </div>
+
+            <div className="space-y-2 md:col-span-2">
+              <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">Documentation URL</div>
+              <Input
+                value={form.documentationUrl}
+                onChange={(e) => setForm((current) => ({ ...current, documentationUrl: e.target.value }))}
+                placeholder="https://docs.example.internal/app"
+              />
+            </div>
+
+            <div className="space-y-2 md:col-span-2">
+              <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">Description</div>
+              <textarea
+                value={form.description}
+                onChange={(e) => setForm((current) => ({ ...current, description: e.target.value }))}
+                rows={3}
+                className="flex w-full rounded-lg border border-slate-800 bg-slate-900/50 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:border-blue-500 transition-all"
+                placeholder="What this product/application does and who it serves"
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-4 xl:grid-cols-2">
+            <section className="rounded-2xl border border-slate-800 bg-slate-900/30 p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <h4 className="text-sm font-bold text-white">Related Assets</h4>
+                <span className="text-xs text-slate-500">{form.assetIds.length} selected</span>
+              </div>
+              <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
+                {assets.length > 0 ? (
+                  assets.map((asset) => (
+                    <label
+                      key={asset.id}
+                      className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-3 py-3 text-sm text-slate-300"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={form.assetIds.includes(asset.id)}
+                        onChange={() =>
+                          setForm((current) => ({
+                            ...current,
+                            assetIds: toggleRelation(current.assetIds, asset.id),
+                          }))
+                        }
+                        className="mt-1"
+                      />
+                      <div>
+                        <div className="font-medium text-white">{asset.name}</div>
+                        <div className="text-xs text-slate-500">
+                          {asset.serialNumber} · {asset.category} · {formatEnum(asset.status)}
+                        </div>
+                      </div>
+                    </label>
+                  ))
+                ) : (
+                  <p className="text-sm text-slate-500">No assets available for linking yet.</p>
+                )}
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-slate-800 bg-slate-900/30 p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <h4 className="text-sm font-bold text-white">Related Licenses</h4>
+                <span className="text-xs text-slate-500">{form.licenseIds.length} selected</span>
+              </div>
+              <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
+                {licenses.length > 0 ? (
+                  licenses.map((license) => (
+                    <label
+                      key={license.id}
+                      className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-3 py-3 text-sm text-slate-300"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={form.licenseIds.includes(license.id)}
+                        onChange={() =>
+                          setForm((current) => ({
+                            ...current,
+                            licenseIds: toggleRelation(current.licenseIds, license.id),
+                          }))
+                        }
+                        className="mt-1"
+                      />
+                      <div>
+                        <div className="font-medium text-white">{license.name}</div>
+                        <div className="text-xs text-slate-500">
+                          {license.key ? "Key stored" : "No key"} · {license.isExpired ? "Expired" : "Valid"}
+                        </div>
+                      </div>
+                    </label>
+                  ))
+                ) : (
+                  <p className="text-sm text-slate-500">No licenses available for linking yet.</p>
+                )}
+              </div>
+            </section>
+          </div>
+
+          <div className="space-y-2">
+            <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">Notes</div>
+            <textarea
+              value={form.notes}
+              onChange={(e) => setForm((current) => ({ ...current, notes: e.target.value }))}
+              rows={4}
+              className="flex w-full rounded-lg border border-slate-800 bg-slate-900/50 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:border-blue-500 transition-all"
+              placeholder="Operational notes, dependencies, escalation details, or rollout context"
+            />
+          </div>
+
+          {formError ? (
+            <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+              {formError}
+            </div>
+          ) : null}
+
+          <div className="flex justify-end gap-3">
+            <Button type="button" variant="ghost" onClick={closeModal} disabled={saving}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? <Loader2 size={16} className="mr-2 animate-spin" /> : null}
+              {editingProduct ? "Save Changes" : "Create Product"}
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

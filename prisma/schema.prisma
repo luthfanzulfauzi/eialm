@@ -47,6 +47,27 @@ enum IPAssignmentTargetType {
   OTHER
 }
 
+enum ProductEnvironment {
+  PRODUCTION
+  STAGING
+  DEVELOPMENT
+  SHARED
+}
+
+enum ProductLifecycle {
+  PLANNING
+  ACTIVE
+  MAINTENANCE
+  RETIRED
+}
+
+enum ProductCriticality {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
 model User {
   id            String     @id @default(cuid())
   email         String     @unique
@@ -124,6 +145,7 @@ model Asset {
   
   ips          IPAddress[]
   licenses     License[]
+  products     Product[]
   auditLogs    AuditLog[]
   
   createdAt    DateTime    @default(now())
@@ -202,9 +224,37 @@ model License {
   
   assetId     String?
   asset       Asset?    @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  products    Product[]
   
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+}
+
+model Product {
+  id               String              @id @default(cuid())
+  name             String
+  code             String              @unique
+  description      String?
+  category         String
+  businessDomain   String?
+  environment      ProductEnvironment  @default(PRODUCTION)
+  lifecycle        ProductLifecycle    @default(PLANNING)
+  criticality      ProductCriticality  @default(MEDIUM)
+  businessOwner    String
+  technicalOwner   String
+  supportTeam      String?
+  documentationUrl String?
+  notes            String?
+
+  assets           Asset[]
+  licenses         License[]
+
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  @@index([name])
+  @@index([lifecycle])
+  @@index([criticality])
 }
 
 model AuditLog {
