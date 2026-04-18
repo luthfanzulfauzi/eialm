@@ -21,6 +21,20 @@ import { cn } from "@/lib/utils";
 type ProductEnvironment = "PRODUCTION" | "STAGING" | "DEVELOPMENT" | "SHARED";
 type ProductLifecycle = "PLANNING" | "ACTIVE" | "MAINTENANCE" | "RETIRED";
 type ProductCriticality = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+type ProductOptionType =
+  | "CATEGORY"
+  | "BUSINESS_DOMAIN"
+  | "SUPPORT_TEAM"
+  | "BUSINESS_OWNER"
+  | "TECHNICAL_OWNER";
+
+type ProductOption = {
+  id: string;
+  type: ProductOptionType;
+  value: string;
+};
+
+type ProductOptionsByType = Record<ProductOptionType, ProductOption[]>;
 
 type AssetOption = {
   id: string;
@@ -43,16 +57,21 @@ type ProductRecord = {
   name: string;
   code: string;
   description: string | null;
-  category: string;
-  businessDomain: string | null;
   environment: ProductEnvironment;
   lifecycle: ProductLifecycle;
   criticality: ProductCriticality;
-  businessOwner: string;
-  technicalOwner: string;
-  supportTeam: string | null;
   documentationUrl: string | null;
   notes: string | null;
+  categoryOptionId: string;
+  businessDomainOptionId: string | null;
+  supportTeamOptionId: string | null;
+  businessOwnerOptionId: string;
+  technicalOwnerOptionId: string;
+  categoryOption: ProductOption;
+  businessDomainOption: ProductOption | null;
+  supportTeamOption: ProductOption | null;
+  businessOwnerOption: ProductOption;
+  technicalOwnerOption: ProductOption;
   assets: AssetOption[];
   licenses: LicenseOption[];
   createdAt: string;
@@ -71,34 +90,42 @@ type ProductFormState = {
   name: string;
   code: string;
   description: string;
-  category: string;
-  businessDomain: string;
   environment: ProductEnvironment;
   lifecycle: ProductLifecycle;
   criticality: ProductCriticality;
-  businessOwner: string;
-  technicalOwner: string;
-  supportTeam: string;
   documentationUrl: string;
   notes: string;
+  categoryOptionId: string;
+  businessDomainOptionId: string;
+  supportTeamOptionId: string;
+  businessOwnerOptionId: string;
+  technicalOwnerOptionId: string;
   assetIds: string[];
   licenseIds: string[];
+};
+
+const emptyOptions: ProductOptionsByType = {
+  CATEGORY: [],
+  BUSINESS_DOMAIN: [],
+  SUPPORT_TEAM: [],
+  BUSINESS_OWNER: [],
+  TECHNICAL_OWNER: [],
 };
 
 const emptyForm: ProductFormState = {
   name: "",
   code: "",
   description: "",
-  category: "",
-  businessDomain: "",
   environment: "PRODUCTION",
   lifecycle: "PLANNING",
   criticality: "MEDIUM",
-  businessOwner: "",
-  technicalOwner: "",
-  supportTeam: "",
   documentationUrl: "",
   notes: "",
+  categoryOptionId: "",
+  businessDomainOptionId: "",
+  supportTeamOptionId: "",
+  businessOwnerOptionId: "",
+  technicalOwnerOptionId: "",
   assetIds: [],
   licenseIds: [],
 };
@@ -134,6 +161,7 @@ export default function ProductsPage() {
   const [products, setProducts] = useState<ProductRecord[]>([]);
   const [assets, setAssets] = useState<AssetOption[]>([]);
   const [licenses, setLicenses] = useState<LicenseOption[]>([]);
+  const [productOptions, setProductOptions] = useState<ProductOptionsByType>(emptyOptions);
   const [summary, setSummary] = useState<ProductSummary>({
     total: 0,
     active: 0,
@@ -154,6 +182,7 @@ export default function ProductsPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const canManage = session?.user?.role === "ADMIN" || session?.user?.role === "OPERATOR";
+  const isAdmin = session?.user?.role === "ADMIN";
 
   const fetchProducts = async (background = false) => {
     try {
@@ -173,6 +202,7 @@ export default function ProductsPage() {
       setProducts(payload.products || []);
       setAssets(payload.assets || []);
       setLicenses(payload.licenses || []);
+      setProductOptions(payload.options?.byType || emptyOptions);
       setSummary(
         payload.summary || {
           total: 0,
@@ -215,10 +245,11 @@ export default function ProductsPage() {
       const haystack = [
         product.name,
         product.code,
-        product.category,
-        product.businessDomain || "",
-        product.businessOwner,
-        product.technicalOwner,
+        product.categoryOption?.value || "",
+        product.businessDomainOption?.value || "",
+        product.businessOwnerOption?.value || "",
+        product.technicalOwnerOption?.value || "",
+        product.supportTeamOption?.value || "",
       ]
         .join(" ")
         .toLowerCase();
@@ -240,16 +271,16 @@ export default function ProductsPage() {
       name: product.name,
       code: product.code,
       description: product.description || "",
-      category: product.category,
-      businessDomain: product.businessDomain || "",
       environment: product.environment,
       lifecycle: product.lifecycle,
       criticality: product.criticality,
-      businessOwner: product.businessOwner,
-      technicalOwner: product.technicalOwner,
-      supportTeam: product.supportTeam || "",
       documentationUrl: product.documentationUrl || "",
       notes: product.notes || "",
+      categoryOptionId: product.categoryOptionId,
+      businessDomainOptionId: product.businessDomainOptionId || "",
+      supportTeamOptionId: product.supportTeamOptionId || "",
+      businessOwnerOptionId: product.businessOwnerOptionId,
+      technicalOwnerOptionId: product.technicalOwnerOptionId,
       assetIds: product.assets.map((asset) => asset.id),
       licenseIds: product.licenses.map((license) => license.id),
     });
@@ -268,13 +299,13 @@ export default function ProductsPage() {
     e.preventDefault();
     setFormError(null);
 
-    if (!form.name.trim() || !form.code.trim() || !form.category.trim()) {
-      setFormError("Name, code, and category are required.");
+    if (!form.name.trim() || !form.code.trim()) {
+      setFormError("Name and code are required.");
       return;
     }
 
-    if (!form.businessOwner.trim() || !form.technicalOwner.trim()) {
-      setFormError("Business owner and technical owner are required.");
+    if (!form.categoryOptionId || !form.businessOwnerOptionId || !form.technicalOwnerOptionId) {
+      setFormError("Category, business owner, and technical owner are required.");
       return;
     }
 
@@ -290,13 +321,10 @@ export default function ProductsPage() {
           name: form.name.trim(),
           code: form.code.trim().toUpperCase(),
           description: form.description.trim() || null,
-          category: form.category.trim(),
-          businessDomain: form.businessDomain.trim() || null,
-          businessOwner: form.businessOwner.trim(),
-          technicalOwner: form.technicalOwner.trim(),
-          supportTeam: form.supportTeam.trim() || null,
           documentationUrl: form.documentationUrl.trim() || null,
           notes: form.notes.trim() || null,
+          businessDomainOptionId: form.businessDomainOptionId || null,
+          supportTeamOptionId: form.supportTeamOptionId || null,
         }),
       });
 
@@ -360,6 +388,41 @@ export default function ProductsPage() {
     },
   ];
 
+  const renderOptionSelect = (
+    label: string,
+    value: string,
+    optionType: ProductOptionType,
+    onChange: (value: string) => void,
+    required = false
+  ) => {
+    const options = productOptions[optionType] || [];
+
+    return (
+      <div className="space-y-2">
+        <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">{label}</div>
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="flex h-10 w-full rounded-lg border border-slate-800 bg-slate-900/50 px-3 py-2 text-sm text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:border-blue-500 transition-all"
+        >
+          <option value="">{required ? `Select ${label}` : `Optional ${label}`}</option>
+          {options.map((option) => (
+            <option key={option.id} value={option.id}>
+              {option.value}
+            </option>
+          ))}
+        </select>
+        {options.length === 0 ? (
+          <p className="text-[10px] text-slate-500">
+            {isAdmin
+              ? `No ${label.toLowerCase()} options available yet. Add them from Settings.`
+              : `${label} options are managed by Admin.`}
+          </p>
+        ) : null}
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
       <section className="rounded-3xl border border-slate-800 bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.14),_transparent_28%),linear-gradient(180deg,_rgba(15,23,42,0.94),_rgba(8,11,18,0.96))] p-8 shadow-2xl">
@@ -373,7 +436,7 @@ export default function ProductsPage() {
               <h1 className="text-3xl font-bold tracking-tight text-white">Products / Application Portfolio</h1>
               <p className="mt-2 text-sm leading-6 text-slate-300">
                 Manage business-facing products as first-class records, then map them to the assets,
-                licenses, and ownership context already tracked in EIALM.
+                licenses, and centrally managed ownership and classification lists in EIALM.
               </p>
             </div>
           </div>
@@ -418,7 +481,7 @@ export default function ProductsPage() {
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by name, code, category, or owner"
+              placeholder="Search by name, code, category, domain, owner, or team"
               className="sm:max-w-md"
             />
             <select
@@ -487,19 +550,19 @@ export default function ProductsPage() {
                   <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                     <div className="rounded-2xl border border-slate-800 bg-slate-900/40 px-4 py-3">
                       <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Category</div>
-                      <div className="mt-2 text-sm font-medium text-white">{product.category}</div>
+                      <div className="mt-2 text-sm font-medium text-white">{product.categoryOption.value}</div>
                     </div>
                     <div className="rounded-2xl border border-slate-800 bg-slate-900/40 px-4 py-3">
-                      <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Environment</div>
-                      <div className="mt-2 text-sm font-medium text-white">{formatEnum(product.environment)}</div>
+                      <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Business Domain</div>
+                      <div className="mt-2 text-sm font-medium text-white">{product.businessDomainOption?.value || "Not set"}</div>
                     </div>
                     <div className="rounded-2xl border border-slate-800 bg-slate-900/40 px-4 py-3">
                       <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Business Owner</div>
-                      <div className="mt-2 text-sm font-medium text-white">{product.businessOwner}</div>
+                      <div className="mt-2 text-sm font-medium text-white">{product.businessOwnerOption.value}</div>
                     </div>
                     <div className="rounded-2xl border border-slate-800 bg-slate-900/40 px-4 py-3">
                       <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Technical Owner</div>
-                      <div className="mt-2 text-sm font-medium text-white">{product.technicalOwner}</div>
+                      <div className="mt-2 text-sm font-medium text-white">{product.technicalOwnerOption.value}</div>
                     </div>
                   </div>
                 </div>
@@ -604,23 +667,20 @@ export default function ProductsPage() {
               />
             </div>
 
-            <div className="space-y-2">
-              <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">Category</div>
-              <Input
-                value={form.category}
-                onChange={(e) => setForm((current) => ({ ...current, category: e.target.value }))}
-                placeholder="Internal Platform"
-              />
-            </div>
+            {renderOptionSelect(
+              "Category",
+              form.categoryOptionId,
+              "CATEGORY",
+              (value) => setForm((current) => ({ ...current, categoryOptionId: value })),
+              true
+            )}
 
-            <div className="space-y-2">
-              <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">Business Domain</div>
-              <Input
-                value={form.businessDomain}
-                onChange={(e) => setForm((current) => ({ ...current, businessDomain: e.target.value }))}
-                placeholder="Finance"
-              />
-            </div>
+            {renderOptionSelect(
+              "Business Domain",
+              form.businessDomainOptionId,
+              "BUSINESS_DOMAIN",
+              (value) => setForm((current) => ({ ...current, businessDomainOptionId: value }))
+            )}
 
             <div className="space-y-2">
               <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">Environment</div>
@@ -667,32 +727,28 @@ export default function ProductsPage() {
               </select>
             </div>
 
-            <div className="space-y-2">
-              <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">Support Team</div>
-              <Input
-                value={form.supportTeam}
-                onChange={(e) => setForm((current) => ({ ...current, supportTeam: e.target.value }))}
-                placeholder="Platform Operations"
-              />
-            </div>
+            {renderOptionSelect(
+              "Support Team",
+              form.supportTeamOptionId,
+              "SUPPORT_TEAM",
+              (value) => setForm((current) => ({ ...current, supportTeamOptionId: value }))
+            )}
 
-            <div className="space-y-2">
-              <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">Business Owner</div>
-              <Input
-                value={form.businessOwner}
-                onChange={(e) => setForm((current) => ({ ...current, businessOwner: e.target.value }))}
-                placeholder="Business unit or contact"
-              />
-            </div>
+            {renderOptionSelect(
+              "Business Owner",
+              form.businessOwnerOptionId,
+              "BUSINESS_OWNER",
+              (value) => setForm((current) => ({ ...current, businessOwnerOptionId: value })),
+              true
+            )}
 
-            <div className="space-y-2">
-              <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">Technical Owner</div>
-              <Input
-                value={form.technicalOwner}
-                onChange={(e) => setForm((current) => ({ ...current, technicalOwner: e.target.value }))}
-                placeholder="Team or engineer"
-              />
-            </div>
+            {renderOptionSelect(
+              "Technical Owner",
+              form.technicalOwnerOptionId,
+              "TECHNICAL_OWNER",
+              (value) => setForm((current) => ({ ...current, technicalOwnerOptionId: value })),
+              true
+            )}
 
             <div className="space-y-2 md:col-span-2">
               <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">Documentation URL</div>
@@ -713,6 +769,10 @@ export default function ProductsPage() {
                 placeholder="What this product/application does and who it serves"
               />
             </div>
+          </div>
+
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/25 px-4 py-3 text-xs text-slate-400">
+            Category, business domain, support team, business owner, and technical owner are now selected from managed dropdown lists. Only Admin can maintain those lists in Settings.
           </div>
 
           <div className="grid gap-4 xl:grid-cols-2">

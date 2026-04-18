@@ -1,4 +1,4 @@
-import { ProductCriticality, ProductEnvironment, ProductLifecycle } from "@prisma/client";
+import { ProductCriticality, ProductEnvironment, ProductLifecycle, ProductOptionType } from "@prisma/client";
 import { z } from "zod";
 
 const optionalTrimmedString = z.preprocess(
@@ -57,16 +57,16 @@ export const productSchema = z.object({
   name: z.string().trim().min(2, "Product name must be at least 2 characters."),
   code: normalizedCode,
   description: optionalTrimmedString,
-  category: z.string().trim().min(2, "Category must be at least 2 characters."),
-  businessDomain: optionalTrimmedString,
   environment: z.nativeEnum(ProductEnvironment),
   lifecycle: z.nativeEnum(ProductLifecycle),
   criticality: z.nativeEnum(ProductCriticality),
-  businessOwner: z.string().trim().min(2, "Business owner is required."),
-  technicalOwner: z.string().trim().min(2, "Technical owner is required."),
-  supportTeam: optionalTrimmedString,
   documentationUrl: optionalUrl,
   notes: optionalTrimmedString,
+  categoryOptionId: z.string().trim().min(1, "Category is required."),
+  businessDomainOptionId: optionalTrimmedString,
+  supportTeamOptionId: optionalTrimmedString,
+  businessOwnerOptionId: z.string().trim().min(1, "Business owner is required."),
+  technicalOwnerOptionId: z.string().trim().min(1, "Technical owner is required."),
   assetIds: relationIdList,
   licenseIds: relationIdList,
 });
@@ -77,5 +77,19 @@ export const productUpdateSchema = productSchema.partial().refine((data) => {
   message: "At least one field must be provided.",
 });
 
+export const productOptionSchema = z.object({
+  type: z.nativeEnum(ProductOptionType),
+  value: z.string().trim().min(1, "Value is required.").max(120, "Value must be 120 characters or fewer."),
+  sortOrder: z.coerce.number().int().min(0).max(9999).optional(),
+});
+
+export const productOptionUpdateSchema = productOptionSchema.partial().refine((data) => {
+  return Object.values(data).some((value) => value !== undefined);
+}, {
+  message: "At least one field must be provided.",
+});
+
 export type ProductFormValues = z.infer<typeof productSchema>;
 export type ProductUpdateValues = z.infer<typeof productUpdateSchema>;
+export type ProductOptionFormValues = z.infer<typeof productOptionSchema>;
+export type ProductOptionUpdateValues = z.infer<typeof productOptionUpdateSchema>;

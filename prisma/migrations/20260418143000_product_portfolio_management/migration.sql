@@ -44,7 +44,6 @@ CREATE TABLE "_LicenseToProduct" (
 -- CreateIndex
 CREATE UNIQUE INDEX "Product_code_key" ON "Product"("code");
 
--- CreateIndex
 CREATE INDEX "Product_name_idx" ON "Product"("name");
 
 -- CreateIndex
@@ -65,7 +64,6 @@ CREATE UNIQUE INDEX "_LicenseToProduct_AB_unique" ON "_LicenseToProduct"("A", "B
 -- CreateIndex
 CREATE INDEX "_LicenseToProduct_B_index" ON "_LicenseToProduct"("B");
 
--- AddForeignKey
 ALTER TABLE "_AssetToProduct" ADD CONSTRAINT "_AssetToProduct_A_fkey" FOREIGN KEY ("A") REFERENCES "Asset"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey

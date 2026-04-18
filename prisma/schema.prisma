@@ -68,6 +68,14 @@ enum ProductCriticality {
   CRITICAL
 }
 
+enum ProductOptionType {
+  CATEGORY
+  BUSINESS_DOMAIN
+  SUPPORT_TEAM
+  BUSINESS_OWNER
+  TECHNICAL_OWNER
+}
+
 model User {
   id            String     @id @default(cuid())
   email         String     @unique
@@ -235,16 +243,22 @@ model Product {
   name             String
   code             String              @unique
   description      String?
-  category         String
-  businessDomain   String?
   environment      ProductEnvironment  @default(PRODUCTION)
   lifecycle        ProductLifecycle    @default(PLANNING)
   criticality      ProductCriticality  @default(MEDIUM)
-  businessOwner    String
-  technicalOwner   String
-  supportTeam      String?
   documentationUrl String?
   notes            String?
+
+  categoryOptionId       String
+  categoryOption         ProductOption       @relation("ProductCategoryOption", fields: [categoryOptionId], references: [id])
+  businessDomainOptionId String?
+  businessDomainOption   ProductOption?      @relation("ProductBusinessDomainOption", fields: [businessDomainOptionId], references: [id])
+  supportTeamOptionId    String?
+  supportTeamOption      ProductOption?      @relation("ProductSupportTeamOption", fields: [supportTeamOptionId], references: [id])
+  businessOwnerOptionId  String
+  businessOwnerOption    ProductOption       @relation("ProductBusinessOwnerOption", fields: [businessOwnerOptionId], references: [id])
+  technicalOwnerOptionId String
+  technicalOwnerOption   ProductOption       @relation("ProductTechnicalOwnerOption", fields: [technicalOwnerOptionId], references: [id])
 
   assets           Asset[]
   licenses         License[]
@@ -255,6 +269,24 @@ model Product {
   @@index([name])
   @@index([lifecycle])
   @@index([criticality])
+}
+
+model ProductOption {
+  id         String            @id @default(cuid())
+  type       ProductOptionType
+  value      String
+  sortOrder  Int               @default(0)
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  categoryProducts       Product[] @relation("ProductCategoryOption")
+  businessDomainProducts Product[] @relation("ProductBusinessDomainOption")
+  supportTeamProducts    Product[] @relation("ProductSupportTeamOption")
+  businessOwnerProducts  Product[] @relation("ProductBusinessOwnerOption")
+  technicalOwnerProducts Product[] @relation("ProductTechnicalOwnerOption")
+
+  @@unique([type, value])
+  @@index([type, sortOrder, value])
 }
 
 model AuditLog {

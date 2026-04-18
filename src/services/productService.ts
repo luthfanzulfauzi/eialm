@@ -1,7 +1,28 @@
 import { prisma } from "@/lib/prisma";
-import { ProductFormValues, ProductUpdateValues } from "@/lib/validations/product";
+import {
+  ProductFormValues,
+  ProductOptionFormValues,
+  ProductOptionUpdateValues,
+  ProductUpdateValues,
+} from "@/lib/validations/product";
+import { ProductOptionType } from "@prisma/client";
 
 const productInclude = {
+  categoryOption: {
+    select: { id: true, type: true, value: true },
+  },
+  businessDomainOption: {
+    select: { id: true, type: true, value: true },
+  },
+  supportTeamOption: {
+    select: { id: true, type: true, value: true },
+  },
+  businessOwnerOption: {
+    select: { id: true, type: true, value: true },
+  },
+  technicalOwnerOption: {
+    select: { id: true, type: true, value: true },
+  },
   assets: {
     select: {
       id: true,
@@ -28,7 +49,55 @@ const productInclude = {
   },
 } as const;
 
-const ensureRelationsExist = async (assetIds: string[], licenseIds: string[]) => {
+const requiredProductOptionTypes = {
+  categoryOptionId: ProductOptionType.CATEGORY,
+  businessOwnerOptionId: ProductOptionType.BUSINESS_OWNER,
+  technicalOwnerOptionId: ProductOptionType.TECHNICAL_OWNER,
+} as const;
+
+const optionalProductOptionTypes = {
+  businessDomainOptionId: ProductOptionType.BUSINESS_DOMAIN,
+  supportTeamOptionId: ProductOptionType.SUPPORT_TEAM,
+} as const;
+
+const groupProductOptions = async () => {
+  const options = await prisma.productOption.findMany({
+    orderBy: [
+      { type: "asc" },
+      { sortOrder: "asc" },
+      { value: "asc" },
+    ],
+  });
+
+  return {
+    all: options,
+    byType: {
+      CATEGORY: options.filter((option) => option.type === ProductOptionType.CATEGORY),
+      BUSINESS_DOMAIN: options.filter((option) => option.type === ProductOptionType.BUSINESS_DOMAIN),
+      SUPPORT_TEAM: options.filter((option) => option.type === ProductOptionType.SUPPORT_TEAM),
+      BUSINESS_OWNER: options.filter((option) => option.type === ProductOptionType.BUSINESS_OWNER),
+      TECHNICAL_OWNER: options.filter((option) => option.type === ProductOptionType.TECHNICAL_OWNER),
+    },
+  };
+};
+
+const ensureRelationsExist = async (
+  data: Partial<
+    Pick<
+      ProductFormValues,
+      | "assetIds"
+      | "licenseIds"
+      | "categoryOptionId"
+      | "businessDomainOptionId"
+      | "supportTeamOptionId"
+      | "businessOwnerOptionId"
+      | "technicalOwnerOptionId"
+    >
+  >
+) => {
+  const assetIds = data.assetIds || [];
+  const licenseIds = data.licenseIds || [];
+
   const [assetCount, licenseCount] = await Promise.all([
     prisma.asset.count({
       where: {
@@ -49,11 +118,41 @@ const ensureRelationsExist = async (assetIds: string[], licenseIds: string[]) =>
   if (licenseCount !== licenseIds.length) {
     throw new Error("One or more selected licenses no longer exist.");
   }
+
+  for (const [fieldName, optionType] of Object.entries(requiredProductOptionTypes)) {
+    const optionId = data[fieldName as keyof typeof requiredProductOptionTypes];
+    const count = await prisma.productOption.count({
+      where: {
+        id: optionId,
+        type: optionType,
+      },
+    });
+
+    if (!optionId || count !== 1) {
+      throw new Error(`Selected ${optionType.toLowerCase().replace(/_/g, " ")} is invalid.`);
+    }
+  }
+
+  for (const [fieldName, optionType] of Object.entries(optionalProductOptionTypes)) {
+    const optionId = data[fieldName as keyof typeof optionalProductOptionTypes];
+    if (!optionId) continue;
+
+    const count = await prisma.productOption.count({
+      where: {
+        id: optionId,
+        type: optionType,
+      },
+    });
+
+    if (count !== 1) {
+      throw new Error(`Selected ${optionType.toLowerCase().replace(/_/g, " ")} is invalid.`);
+    }
+  }
 };
 
 export const ProductService = {
   async getProductManagerData() {
-    const [products, assets, licenses] = await Promise.all([
+    const [products, assets, licenses, options] = await Promise.all([
       prisma.product.findMany({
         include: productInclude,
         orderBy: [
@@ -81,6 +180,7 @@ export const ProductService = {
         },
         orderBy: { name: "asc" },
       }),
+      groupProductOptions(),
     ]);
 
     const summary = products.reduce(
@@ -101,27 +201,27 @@ export const ProductService = {
       }
     );
 
-    return { products, assets, licenses, summary };
+    return { products, assets, licenses, options, summary };
   },
 
   async createProduct(data: ProductFormValues) {
-    await ensureRelationsExist(data.assetIds, data.licenseIds);
+    await ensureRelationsExist(data);
 
     return prisma.product.create({
       data: {
         name: data.name,
         code: data.code,
         description: data.description || null,
-        category: data.category,
-        businessDomain: data.businessDomain || null,
         environment: data.environment,
         lifecycle: data.lifecycle,
         criticality: data.criticality,
-        businessOwner: data.businessOwner,
-        technicalOwner: data.technicalOwner,
-        supportTeam: data.supportTeam || null,
         documentationUrl: data.documentationUrl || null,
         notes: data.notes || null,
+        categoryOptionId: data.categoryOptionId,
+        businessDomainOptionId: data.businessDomainOptionId || null,
+        supportTeamOptionId: data.supportTeamOptionId || null,
+        businessOwnerOptionId: data.businessOwnerOptionId,
+        technicalOwnerOptionId: data.technicalOwnerOptionId,
         assets: {
           connect: data.assetIds.map((id) => ({ id })),
         },
@@ -134,8 +234,47 @@ export const ProductService = {
   },
 
   async updateProduct(id: string, data: ProductUpdateValues) {
-    if (data.assetIds || data.licenseIds) {
-      await ensureRelationsExist(data.assetIds || [], data.licenseIds || []);
+    if (
+      data.assetIds !== undefined ||
+      data.licenseIds !== undefined ||
+      data.categoryOptionId !== undefined ||
+      data.businessDomainOptionId !== undefined ||
+      data.supportTeamOptionId !== undefined ||
+      data.businessOwnerOptionId !== undefined ||
+      data.technicalOwnerOptionId !== undefined
+    ) {
+      const currentProduct = await prisma.product.findUnique({
+        where: { id },
+        select: {
+          categoryOptionId: true,
+          businessDomainOptionId: true,
+          supportTeamOptionId: true,
+          businessOwnerOptionId: true,
+          technicalOwnerOptionId: true,
+          assets: { select: { id: true } },
+          licenses: { select: { id: true } },
+        },
+      });
+
+      if (!currentProduct) {
+        throw new Error("Product not found.");
+      }
+
+      await ensureRelationsExist({
+        assetIds: data.assetIds ?? currentProduct.assets.map((asset) => asset.id),
+        licenseIds: data.licenseIds ?? currentProduct.licenses.map((license) => license.id),
+        categoryOptionId: data.categoryOptionId ?? currentProduct.categoryOptionId,
+        businessDomainOptionId:
+          data.businessDomainOptionId !== undefined
+            ? data.businessDomainOptionId
+            : currentProduct.businessDomainOptionId || undefined,
+        supportTeamOptionId:
+          data.supportTeamOptionId !== undefined
+            ? data.supportTeamOptionId
+            : currentProduct.supportTeamOptionId || undefined,
+        businessOwnerOptionId: data.businessOwnerOptionId ?? currentProduct.businessOwnerOptionId,
+        technicalOwnerOptionId: data.technicalOwnerOptionId ?? currentProduct.technicalOwnerOptionId,
+      });
     }
 
     const payload: Record<string, unknown> = {};
@@ -143,16 +282,16 @@ export const ProductService = {
     if (data.name !== undefined) payload.name = data.name;
     if (data.code !== undefined) payload.code = data.code;
     if (data.description !== undefined) payload.description = data.description || null;
-    if (data.category !== undefined) payload.category = data.category;
-    if (data.businessDomain !== undefined) payload.businessDomain = data.businessDomain || null;
     if (data.environment !== undefined) payload.environment = data.environment;
     if (data.lifecycle !== undefined) payload.lifecycle = data.lifecycle;
     if (data.criticality !== undefined) payload.criticality = data.criticality;
-    if (data.businessOwner !== undefined) payload.businessOwner = data.businessOwner;
-    if (data.technicalOwner !== undefined) payload.technicalOwner = data.technicalOwner;
-    if (data.supportTeam !== undefined) payload.supportTeam = data.supportTeam || null;
     if (data.documentationUrl !== undefined) payload.documentationUrl = data.documentationUrl || null;
     if (data.notes !== undefined) payload.notes = data.notes || null;
+    if (data.categoryOptionId !== undefined) payload.categoryOptionId = data.categoryOptionId;
+    if (data.businessDomainOptionId !== undefined) payload.businessDomainOptionId = data.businessDomainOptionId || null;
+    if (data.supportTeamOptionId !== undefined) payload.supportTeamOptionId = data.supportTeamOptionId || null;
+    if (data.businessOwnerOptionId !== undefined) payload.businessOwnerOptionId = data.businessOwnerOptionId;
+    if (data.technicalOwnerOptionId !== undefined) payload.technicalOwnerOptionId = data.technicalOwnerOptionId;
     if (data.assetIds !== undefined) {
       payload.assets = {
         set: data.assetIds.map((relationId) => ({ id: relationId })),
@@ -173,6 +312,39 @@ export const ProductService = {
 
   async deleteProduct(id: string) {
     return prisma.product.delete({
+      where: { id },
+    });
+  },
+
+  async getProductOptions() {
+    return groupProductOptions();
+  },
+
+  async createProductOption(data: ProductOptionFormValues) {
+    return prisma.productOption.create({
+      data: {
+        type: data.type,
+        value: data.value.trim(),
+        sortOrder: data.sortOrder ?? 0,
+      },
+    });
+  },
+
+  async updateProductOption(id: string, data: ProductOptionUpdateValues) {
+    const payload: Record<string, unknown> = {};
+
+    if (data.type !== undefined) payload.type = data.type;
+    if (data.value !== undefined) payload.value = data.value.trim();
+    if (data.sortOrder !== undefined) payload.sortOrder = data.sortOrder;
+
+    return prisma.productOption.update({
+      where: { id },
+      data: payload,
+    });
+  },
+
+  async deleteProductOption(id: string) {
+    return prisma.productOption.delete({
       where: { id },
     });
   },
