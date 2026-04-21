@@ -4,6 +4,10 @@ import { prisma } from "@/lib/prisma";
 import { toCsv } from "@/lib/csv";
 import type { AssetStatus, LocationType } from "@prisma/client";
 
+const assetStatuses = new Set(["PLAN", "PURCHASED", "INSTALLING", "ACTIVE", "MAINTENANCE", "BROKEN", "DECOMMISSIONED"]);
+const locationTypes = new Set(["DATACENTER", "WAREHOUSE"]);
+const rackStates = new Set(["RACKED", "UNRACKED", "UNASSIGNED"]);
+
 const dateStamp = () => {
   const d = new Date();
   const y = d.getFullYear();
@@ -19,14 +23,21 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const q = searchParams.get("q") || undefined;
   const cat = searchParams.get("cat") || undefined;
-  const type = (searchParams.get("type") as LocationType | null) || undefined;
-  const status = (searchParams.get("status") as AssetStatus | null) || undefined;
+  const rawType = searchParams.get("type") || "";
+  const rawStatus = searchParams.get("status") || "";
+  const rawRackState = searchParams.get("rackState") || "";
+  const type = locationTypes.has(rawType) ? (rawType as LocationType) : undefined;
+  const status = assetStatuses.has(rawStatus) ? (rawStatus as AssetStatus) : undefined;
+  const rackState = rackStates.has(rawRackState) ? rawRackState : undefined;
 
   const where = {
     AND: [
       cat ? { category: { equals: cat, mode: "insensitive" as const } } : {},
       status ? { status } : {},
       type ? { location: { type } } : {},
+      rackState === "RACKED" ? { rackId: { not: null } } : {},
+      rackState === "UNRACKED" ? { locationId: { not: null }, rackId: null } : {},
+      rackState === "UNASSIGNED" ? { locationId: null, rackId: null } : {},
       q
         ? {
             OR: [

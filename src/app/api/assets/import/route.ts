@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { parseCsv } from "@/lib/csv";
+import { AssetService } from "@/services/assetService";
 import type { AssetStatus, LocationType, RackFace } from "@prisma/client";
 
 const normalize = (v: string | undefined) => (v ?? "").trim();
@@ -171,39 +172,18 @@ export async function POST(req: Request) {
       } as any;
 
       try {
-        await prisma.$transaction(async (tx) => {
-          const existing = await tx.asset.findUnique({
-            where: { serialNumber },
-            select: { id: true },
-          });
-
-          if (existing) {
-            await tx.asset.update({
-              where: { id: existing.id },
-              data: payload,
-            });
-            await tx.auditLog.create({
-              data: {
-                action: "IMPORT_UPDATE",
-                userId: session.user.id,
-                assetId: existing.id,
-                details: JSON.stringify({ serialNumber }),
-              },
-            });
-            updated++;
-          } else {
-            const createdAsset = await tx.asset.create({ data: payload });
-            await tx.auditLog.create({
-              data: {
-                action: "IMPORT_CREATE",
-                userId: session.user.id,
-                assetId: createdAsset.id,
-                details: JSON.stringify({ serialNumber }),
-              },
-            });
-            created++;
-          }
+        const existing = await prisma.asset.findUnique({
+          where: { serialNumber },
+          select: { id: true },
         });
+
+        if (existing) {
+          await AssetService.updateAsset(existing.id, payload, session.user.id);
+          updated++;
+        } else {
+          await AssetService.createAsset(payload, session.user.id);
+          created++;
+        }
       } catch (e: any) {
         errors.push({ row: rowNumber, error: e?.message || "Failed to import row" });
       }

@@ -63,7 +63,9 @@ export const AssetForm = ({ onSubmit, initialData, locations, racks }: AssetForm
     [racks, selectedLocationId]
   );
 
-  const isRackRequired = ['server', 'network device', 'switch', 'router'].includes(selectedCategory || "");
+  const isRackRequired =
+    selectedType === "DATACENTER" &&
+    ['server', 'network device', 'switch', 'router'].includes(selectedCategory || "");
   const isServer = selectedCategory === "server";
   const categoryReg = register("category");
 
@@ -326,6 +328,7 @@ export const AssetForm = ({ onSubmit, initialData, locations, racks }: AssetForm
               <option value="DATACENTER">Datacenter</option>
               <option value="WAREHOUSE">Warehouse</option>
             </select>
+            {errors.locationType && <p className="text-[10px] text-red-500">{errors.locationType.message}</p>}
           </div>
 
           <div className="space-y-2">
@@ -344,6 +347,7 @@ export const AssetForm = ({ onSubmit, initialData, locations, racks }: AssetForm
                 <option key={loc.id} value={loc.id}>{loc.name}</option>
               ))}
             </select>
+            {errors.locationId && <p className="text-[10px] text-red-500">{errors.locationId.message}</p>}
           </div>
         </div>
 

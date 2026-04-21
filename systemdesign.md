@@ -4,12 +4,12 @@ Enterprise Infrastructure & Asset Lifecycle Manager (EIALM) is an internal web a
 
 ## Current Implementation Status
 
-Last reviewed against the repository on April 21, 2026.
+Last reviewed against the repository on April 22, 2026.
 
 - Next.js 14 App Router, TypeScript, Tailwind CSS, Prisma, PostgreSQL, NextAuth.js, Zustand, React Hook Form, Zod, Docker, and Docker Compose are in use.
 - Authentication, RBAC, user management, password change, login timeout, and protected API/page access are implemented.
 - Dashboard summary cards and recent activity are implemented; expired/expiring operational sections and global search are still missing.
-- Asset hardware CRUD, audit trail, CSV import/export, datacenter/warehouse CRUD, rack CRUD, and rack layout placement flows are implemented.
+- Asset hardware CRUD, audit trail, CSV import/export, advanced asset filtering, pagination, placement validation, datacenter/warehouse CRUD, rack CRUD, and rack layout placement flows are implemented.
 - Public and private IP inventory management are implemented, including ranges, generated IP inventory, status transitions, and assignment target metadata.
 - License CRUD, assignment, and expiry views are implemented.
 - Products / Application is now a persisted module with product CRUD, configurable option catalogs, asset/license relationships, business owners, and user-backed technical owners. The latest technical-owner migration still needs deployed validation.
@@ -124,7 +124,7 @@ prisma/
 
 - Dashboard needs expired items, expiring licenses, and repair-focused widgets to fully match the original scope.
 - Global search is not implemented yet.
-- Advanced filters, pagination, and unified toast notifications need to be standardized across modules.
+- Advanced filters, pagination, and unified toast notifications need to be standardized across modules beyond the completed Asset Inventory core.
 - Product portfolio should eventually relate to IPs, locations, compliance metadata, and operational dependency views.
 - Production design still needs ingress options for direct DNS or Cloudflare Tunnel, backup/restore, health checks, observability, and security hardening.
 - Repository cleanup should remove confirmed-unneeded tracked backup files and keep runtime data out of source control.

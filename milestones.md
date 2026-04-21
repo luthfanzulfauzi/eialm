@@ -1,7 +1,7 @@
 # EIALM Project Milestones
 ## Enterprise Infrastructure & Asset Lifecycle Manager
 
-This roadmap reflects the current repository state as of April 21, 2026. It is organized as milestone-plus-deliverables so it can serve both as a progress report and as an execution plan.
+This roadmap reflects the current repository state as of April 22, 2026. It is organized as milestone-plus-deliverables so it can serve both as a progress report and as an execution plan.
 
 Percentages represent implementation maturity in the codebase today, not the final target state.
 
@@ -79,7 +79,7 @@ Deliver secure access control and operational user administration for Admin, Ope
 
 ---
 
-## Milestone 3A: Asset Inventory Core (90% Complete)
+## Milestone 3A: Asset Inventory Core (100% Complete)
 
 **Goal**
 
@@ -93,9 +93,9 @@ Provide a dependable hardware inventory system with lifecycle tracking, search, 
 - [x] Basic search by name and serial number exists.
 - [x] Asset CSV export is implemented.
 - [x] Asset CSV import with create/update behavior is implemented.
-- [ ] Filtering is still basic.
-- [ ] Pagination and large-table UX need work.
-- [ ] Validation around location/rack consistency can be strengthened.
+- [x] Advanced filtering is implemented for category, status, location type, and rack state.
+- [x] Pagination is implemented with query-state persistence.
+- [x] Location/rack consistency validation is enforced in the asset service for create, update, and CSV import flows.
 
 **Deliverables**
 
@@ -104,14 +104,14 @@ Provide a dependable hardware inventory system with lifecycle tracking, search, 
 - [x] Audit trail for asset changes
 - [x] CSV export endpoint
 - [x] CSV import endpoint with row-level warnings
-- [ ] Advanced asset filtering by category, location type, rack state, and status
-- [ ] Pagination and query-state persistence
-- [ ] Stronger validation for warehouse vs datacenter vs rack placement rules
+- [x] Advanced asset filtering by category, location type, rack state, and status
+- [x] Pagination and query-state persistence
+- [x] Stronger validation for warehouse vs datacenter vs rack placement rules
 
 **Exit Criteria**
 
-- Operators can manage assets at scale with consistent validation.
-- Inventory workflows remain usable and accurate across larger datasets.
+- [x] Operators can manage assets at scale with consistent validation.
+- [x] Inventory workflows remain usable and accurate across larger datasets.
 
 ---
 

@@ -20,7 +20,7 @@ Implemented well today:
 - persisted products / application portfolio CRUD
 - product option catalogs for categories, domains, support teams, and business owners
 - product relationships to assets, licenses, and user-backed technical owners
-- asset CSV import/export
+- asset CSV import/export, advanced asset filtering, pagination, and placement validation
 - dashboard summary cards and recent activity
 - system settings for password change and login timeout
 
@@ -29,7 +29,7 @@ Still in progress:
 - product portfolio polish, migration validation, and end-to-end browser testing
 - expired and expiring dashboard sections
 - global search
-- advanced filtering, pagination, and unified toast notifications
+- cross-module advanced filtering/pagination polish and unified toast notifications
 - production ingress, backup, and deployment hardening
 
 The working roadmap is tracked in [milestones.md](./milestones.md).
@@ -204,6 +204,8 @@ Current API routes include:
 - `/api/settings/login-timeout`
 - `/api/activity`
 
+The Asset Inventory page now includes query-persisted filtering by category, status, location type, and rack state, plus paginated large-table navigation. Asset create, update, and CSV import share service-level placement validation for warehouse, datacenter, and rack consistency.
+
 The Products / Application page is now a persisted implementation slice. It includes product CRUD, summary metrics, local search, lifecycle filtering, asset/license relationship mapping, user-backed technical owners, and admin-managed dropdown catalogs. The newest technical-owner migration still needs deployed validation against existing product data.
 
 ## Build Notes
@@ -221,7 +223,7 @@ There are still a few production-readiness concerns to address:
 
 - Products / Application needs end-to-end validation after the technical-owner migration and further UX polish.
 - Global search is still a placeholder.
-- Advanced filtering, pagination, and toast notifications are still pending.
+- Cross-module pagination/filter consistency and toast notifications are still pending outside the completed Asset Inventory core.
 - Dashboard expired/expiring sections are still incomplete.
 - Production deployment needs ingress, backup, and operational hardening work.
 - Residual tracked backup files exist under `src/` and should be removed once confirmed unnecessary:

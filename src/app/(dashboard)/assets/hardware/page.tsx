@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from "react";
 import { AssetTable } from "@/components/tables/AssetTable";
 import { Modal } from "@/components/ui/Modal";
 import { AssetForm } from "@/components/forms/AssetForm";
-import { Download, Filter, Plus, Search, Upload } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, Plus, Search, Upload } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AssetFormValues } from "@/lib/validations/asset";
 import { useRole } from "@/hooks/useRole";
@@ -25,23 +25,48 @@ function HardwareContent() {
   const [assets, setAssets] = useState([]);
   const [locations, setLocations] = useState([]);
   const [racks, setRacks] = useState([]);
+  const [meta, setMeta] = useState({ total: 0, page: 1, pages: 1, pageSize: 10 });
   const [loading, setLoading] = useState(true);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<any>(null);
 
+  const buildAssetQuery = () => {
+    const params = new URLSearchParams();
+    ["q", "cat", "status", "type", "rackState", "page"].forEach((key) => {
+      const value = searchParams.get(key);
+      if (value) params.set(key, value);
+    });
+    return params.toString();
+  };
+
+  const setQueryParam = (key: string, value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value) {
+      params.set(key, value);
+    } else {
+      params.delete(key);
+    }
+    if (key !== "page") params.set("page", "1");
+    router.push(`?${params.toString()}`);
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      const q = searchParams.get("q") || "";
-      const cat = searchParams.get("cat") || "";
       
-      const res = await fetch(`/api/assets?q=${q}&cat=${cat}`);
+      const res = await fetch(`/api/assets?${buildAssetQuery()}`);
       const data = await res.json();
       
       setAssets(data.items || []);
       setLocations(data.locations || []);
       setRacks(data.racks || []);
+      setMeta({
+        total: data.total || 0,
+        page: data.page || 1,
+        pages: data.pages || 1,
+        pageSize: data.pageSize || 10,
+      });
       setLoading(false);
     };
     fetchData();
@@ -49,15 +74,19 @@ function HardwareContent() {
 
   const refreshTable = async () => {
     setLoading(true);
-    const q = searchParams.get("q") || "";
-    const cat = searchParams.get("cat") || "";
 
-    const res = await fetch(`/api/assets?q=${q}&cat=${cat}`);
+    const res = await fetch(`/api/assets?${buildAssetQuery()}`);
     const data = await res.json();
 
     setAssets(data.items || []);
     setLocations(data.locations || []);
     setRacks(data.racks || []);
+    setMeta({
+      total: data.total || 0,
+      page: data.page || 1,
+      pages: data.pages || 1,
+      pageSize: data.pageSize || 10,
+    });
     setLoading(false);
   };
 
@@ -127,9 +156,9 @@ function HardwareContent() {
   };
 
   const handleExport = async () => {
-    const q = searchParams.get("q") || "";
-    const cat = searchParams.get("cat") || "";
-    const res = await fetch(`/api/assets/export?q=${encodeURIComponent(q)}&cat=${encodeURIComponent(cat)}`);
+    const exportParams = new URLSearchParams(buildAssetQuery());
+    exportParams.delete("page");
+    const res = await fetch(`/api/assets/export?${exportParams.toString()}`);
     if (!res.ok) {
       const payload = await res.text().catch(() => "");
       window.alert(payload || "Failed to export assets");
@@ -181,30 +210,65 @@ function HardwareContent() {
           <p className="text-slate-500 text-sm">Manage physical infrastructure and equipment</p>
         </div>
         
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
             <input 
               type="text" 
               placeholder="Search SN or Name..." 
               defaultValue={searchParams.get("q") || ""}
-              onChange={(e) => {
-                const params = new URLSearchParams(searchParams.toString());
-                if (e.target.value) {
-                  params.set("q", e.target.value);
-                } else {
-                  params.delete("q");
-                }
-                router.push(`?${params.toString()}`);
-              }}
+              onChange={(e) => setQueryParam("q", e.target.value)}
               className="bg-slate-900 border border-slate-800 rounded-lg pl-10 pr-4 py-2 text-sm outline-none focus:border-blue-500 w-64 text-white"
             />
           </div>
           
-          <button className="flex items-center gap-2 px-4 py-2 bg-slate-800 rounded-lg text-sm border border-slate-700 hover:bg-slate-700 transition-colors">
-            <Filter size={16} />
-            Filter
-          </button>
+          <select
+            value={searchParams.get("cat") || ""}
+            onChange={(e) => setQueryParam("cat", e.target.value)}
+            className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500 text-white"
+            aria-label="Filter by category"
+          >
+            <option value="">All categories</option>
+            <option value="Server">Server</option>
+            <option value="Network Device">Network Device</option>
+            <option value="Cable">Cable</option>
+            <option value="Other">Other</option>
+          </select>
+
+          <select
+            value={searchParams.get("status") || ""}
+            onChange={(e) => setQueryParam("status", e.target.value)}
+            className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500 text-white"
+            aria-label="Filter by status"
+          >
+            <option value="">All statuses</option>
+            {['PLAN', 'PURCHASED', 'INSTALLING', 'ACTIVE', 'MAINTENANCE', 'BROKEN', 'DECOMMISSIONED'].map((status) => (
+              <option key={status} value={status}>{status}</option>
+            ))}
+          </select>
+
+          <select
+            value={searchParams.get("type") || ""}
+            onChange={(e) => setQueryParam("type", e.target.value)}
+            className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500 text-white"
+            aria-label="Filter by location type"
+          >
+            <option value="">All locations</option>
+            <option value="DATACENTER">Datacenter</option>
+            <option value="WAREHOUSE">Warehouse</option>
+          </select>
+
+          <select
+            value={searchParams.get("rackState") || ""}
+            onChange={(e) => setQueryParam("rackState", e.target.value)}
+            className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500 text-white"
+            aria-label="Filter by rack state"
+          >
+            <option value="">All rack states</option>
+            <option value="RACKED">Racked</option>
+            <option value="UNRACKED">Stored / unracked</option>
+            <option value="UNASSIGNED">Unassigned</option>
+          </select>
 
           <button
             onClick={handleExport}
@@ -244,15 +308,48 @@ function HardwareContent() {
       {loading ? (
         <div className="py-20 text-center text-slate-500 animate-pulse">Scanning inventory...</div>
       ) : (
-        <AssetTable
-          assets={assets as any}
-          canManage={!isViewer}
-          onEdit={(asset) => {
-            setEditAsset(asset);
-            setShowEditModal(true);
-          }}
-          onDelete={(asset) => handleDelete(asset)}
-        />
+        <>
+          <AssetTable
+            assets={assets as any}
+            canManage={!isViewer}
+            onEdit={(asset) => {
+              setEditAsset(asset);
+              setShowEditModal(true);
+            }}
+            onDelete={(asset) => handleDelete(asset)}
+          />
+
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 text-sm text-slate-400">
+            <div>
+              Showing {assets.length ? (meta.page - 1) * meta.pageSize + 1 : 0}
+              {"-"}
+              {Math.min(meta.page * meta.pageSize, meta.total)} of {meta.total} assets
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={meta.page <= 1}
+                onClick={() => setQueryParam("page", String(meta.page - 1))}
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-800 bg-slate-900 text-slate-200 disabled:opacity-40"
+              >
+                <ChevronLeft size={16} />
+                Previous
+              </button>
+              <span className="px-3 py-2 text-slate-500">
+                Page {meta.page} of {meta.pages}
+              </span>
+              <button
+                type="button"
+                disabled={meta.page >= meta.pages}
+                onClick={() => setQueryParam("page", String(meta.page + 1))}
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-800 bg-slate-900 text-slate-200 disabled:opacity-40"
+              >
+                Next
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+        </>
       )}
 
       <Modal 

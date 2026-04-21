@@ -3,6 +3,7 @@ import { AssetService } from "@/services/assetService";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import type { AssetStatus, LocationType } from "@prisma/client";
 
 const formatAssetError = (error: unknown) => {
   const message = (error as any)?.message || "Failed to create asset";
@@ -11,6 +12,10 @@ const formatAssetError = (error: unknown) => {
   }
   return message;
 };
+
+const assetStatuses = new Set(["PLAN", "PURCHASED", "INSTALLING", "ACTIVE", "MAINTENANCE", "BROKEN", "DECOMMISSIONED"]);
+const locationTypes = new Set(["DATACENTER", "WAREHOUSE"]);
+const rackStates = new Set(["RACKED", "UNRACKED", "UNASSIGNED"]);
 
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
@@ -21,7 +26,13 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const q = searchParams.get("q") || undefined;
   const cat = searchParams.get("cat") || undefined;
-  const type = searchParams.get("type") as any || undefined; // Cast to LocationType
+  const rawStatus = searchParams.get("status") || "";
+  const rawType = searchParams.get("type") || "";
+  const rawRackState = searchParams.get("rackState") || "";
+  const status = assetStatuses.has(rawStatus) ? (rawStatus as AssetStatus) : undefined;
+  const type = locationTypes.has(rawType) ? (rawType as LocationType) : undefined;
+  const rackState = rackStates.has(rawRackState) ? (rawRackState as any) : undefined;
+  const page = Number(searchParams.get("page") || "1");
   
   try {
     const [locations, racks] = await Promise.all([
@@ -33,7 +44,10 @@ export async function GET(req: Request) {
       const data = await AssetService.getAssets({ 
         search: q, 
         category: cat,
-        type: type 
+        status,
+        type,
+        rackState,
+        page,
       });
       return NextResponse.json({ ...data, locations, racks });
     } catch (error) {

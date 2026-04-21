@@ -20,8 +20,12 @@ export const assetSchema = z.object({
   serialNumber: z.string().min(1),
   category: z.string().min(1),
   status: z.enum(['PLAN', 'PURCHASED', 'INSTALLING', 'ACTIVE', 'MAINTENANCE', 'BROKEN', 'DECOMMISSIONED']),
+  locationType: z.enum(['DATACENTER', 'WAREHOUSE']).optional(),
   locationId: optionalId,
   rackId: optionalId,
+  rackFace: z.enum(['FRONT', 'BACK', 'BOTH']).optional(),
+  rackUnitStart: optionalPositiveInt,
+  rackUnitSize: optionalPositiveInt,
   serverType: optionalTrimmedString,
   cpuType: optionalTrimmedString,
   cpuSocketNumber: optionalPositiveInt,
@@ -36,15 +40,23 @@ export const assetSchema = z.object({
   diskDataType: optionalTrimmedString,
   diskDataNumber: optionalPositiveInt,
   diskDataSize: optionalPositiveInt,
-}).refine((data) => { // TS will now recognize 'data' correctly after Zod is installed
+}).superRefine((data, ctx) => {
   const rackRequiredCategories = ['server', 'network device', 'switch', 'router'];
-  if (rackRequiredCategories.includes(data.category.toLowerCase())) {
-    return !!data.rackId;
+  if (data.locationType === 'WAREHOUSE' && data.rackId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Warehouse assets cannot be assigned to a rack",
+      path: ["rackId"],
+    });
   }
-  return true;
-}, {
-  message: "Rack location is required for server and network hardware",
-  path: ["rackId"],
+
+  if (data.locationType === 'DATACENTER' && rackRequiredCategories.includes(data.category.toLowerCase()) && !data.rackId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Server and network hardware in a datacenter must be assigned to a rack",
+      path: ["rackId"],
+    });
+  }
 });
 
 // Add this line to export the type for use in your forms

@@ -2,27 +2,133 @@ import { prisma } from "@/lib/prisma";
 import { AssetStatus, Prisma, LocationType } from "@prisma/client";
 import { AssetFormValues } from "@/lib/validations/asset";
 
+const PAGE_SIZE = 10;
+
+export type AssetRackState = "RACKED" | "UNRACKED" | "UNASSIGNED";
+
+const rackRequiredCategories = ["server", "network device", "switch", "router"];
+
+const normalizeId = (v?: unknown) => (typeof v === "string" && v.trim().length > 0 ? v.trim() : null);
+const normalizeString = (v?: unknown) => (typeof v === "string" && v.trim().length > 0 ? v.trim() : null);
+const normalizeInt = (v?: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
+
+const isRackRequiredCategory = (category: string) =>
+  rackRequiredCategories.includes(category.trim().toLowerCase());
+
+const sanitizeAssetInput = (data: AssetFormValues) => ({
+  name: data.name.trim(),
+  serialNumber: data.serialNumber.trim(),
+  category: data.category.trim(),
+  status: data.status,
+  locationId: normalizeId(data.locationId),
+  rackId: normalizeId(data.rackId),
+  rackFace: (data as any).rackFace ?? null,
+  rackUnitStart: normalizeInt((data as any).rackUnitStart),
+  rackUnitSize: normalizeInt((data as any).rackUnitSize),
+  serverType: normalizeString(data.serverType),
+  cpuType: normalizeString(data.cpuType),
+  cpuSocketNumber: normalizeInt(data.cpuSocketNumber),
+  cpuCore: normalizeInt(data.cpuCore),
+  memoryType: normalizeString(data.memoryType),
+  memorySize: normalizeInt(data.memorySize),
+  memorySlotUsed: normalizeInt(data.memorySlotUsed),
+  memorySpeed: normalizeInt(data.memorySpeed),
+  diskOsType: normalizeString(data.diskOsType),
+  diskOsNumber: normalizeInt(data.diskOsNumber),
+  diskOsSize: normalizeInt(data.diskOsSize),
+  diskDataType: normalizeString(data.diskDataType),
+  diskDataNumber: normalizeInt(data.diskDataNumber),
+  diskDataSize: normalizeInt(data.diskDataSize),
+});
+
+const resolvePlacement = async (
+  tx: Prisma.TransactionClient,
+  data: ReturnType<typeof sanitizeAssetInput>
+) => {
+  let locationId = data.locationId;
+  let rackId = data.rackId;
+
+  if (data.rackUnitStart !== null && data.rackUnitStart <= 0) {
+    throw new Error("Rack unit start must be a positive number");
+  }
+
+  if (data.rackUnitSize !== null && data.rackUnitSize <= 0) {
+    throw new Error("Rack unit size must be a positive number");
+  }
+
+  const rack = rackId
+    ? await tx.rack.findUnique({
+        where: { id: rackId },
+        include: { location: true },
+      })
+    : null;
+
+  if (rackId && !rack) {
+    throw new Error("Selected rack was not found");
+  }
+
+  if (rack && rack.location.type !== "DATACENTER") {
+    throw new Error("Rack placement is only valid inside a datacenter");
+  }
+
+  if (rack && locationId && locationId !== rack.locationId) {
+    throw new Error("Selected rack does not belong to the selected location");
+  }
+
+  if (rack) {
+    locationId = rack.locationId;
+  }
+
+  const location = locationId
+    ? await tx.location.findUnique({ where: { id: locationId } })
+    : null;
+
+  if (locationId && !location) {
+    throw new Error("Selected location was not found");
+  }
+
+  if (location?.type === "WAREHOUSE" && rackId) {
+    throw new Error("Warehouse assets cannot be assigned to a rack");
+  }
+
+  if (location?.type === "DATACENTER" && isRackRequiredCategory(data.category) && !rackId) {
+    throw new Error("Server and network hardware in a datacenter must be assigned to a rack");
+  }
+
+  return {
+    ...data,
+    locationId,
+    rackId,
+    rackFace: rackId ? (data as any).rackFace ?? null : null,
+    rackUnitStart: rackId ? (data as any).rackUnitStart ?? null : null,
+    rackUnitSize: rackId ? (data as any).rackUnitSize ?? null : null,
+  };
+};
+
 export const AssetService = {
   /**
-   * Fetches assets with search, category, status, and location type filtering
+   * Fetches assets with search, category, status, location type, rack-state filtering, and pagination.
    */
   async getAssets(params: {
     search?: string;
     category?: string;
     status?: AssetStatus;
-    type?: LocationType; // Add this to the type definition
+    type?: LocationType;
+    rackState?: AssetRackState;
     page?: number;
   }) {
-    const { search, category, status, type, page = 1 } = params;
-    const skip = (page - 1) * 10;
+    const { search, category, status, type, rackState, page = 1 } = params;
+    const currentPage = Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
+    const skip = (currentPage - 1) * PAGE_SIZE;
 
-    // Build flexible filter
     const where: Prisma.AssetWhereInput = {
       AND: [
         category ? { category: { equals: category, mode: 'insensitive' } } : {},
         status ? { status } : {},
-        // Filter by location type (e.g., DATACENTER or WAREHOUSE)
         type ? { location: { type: type } } : {},
+        rackState === "RACKED" ? { rackId: { not: null } } : {},
+        rackState === "UNRACKED" ? { locationId: { not: null }, rackId: null } : {},
+        rackState === "UNASSIGNED" ? { locationId: null, rackId: null } : {},
         search ? {
           OR: [
             { name: { contains: search, mode: 'insensitive' } },
@@ -40,50 +146,27 @@ export const AssetService = {
           rack: true, 
           ips: true 
         },
-        take: 10,
+        take: PAGE_SIZE,
         skip,
         orderBy: { updatedAt: 'desc' }
       }),
       prisma.asset.count({ where })
     ]);
 
-    return { items, total, pages: Math.ceil(total / 10) };
+    return { items, total, page: currentPage, pageSize: PAGE_SIZE, pages: Math.max(1, Math.ceil(total / PAGE_SIZE)) };
   },
 
-  // ... rest of the service methods remain the same
   async createAsset(data: AssetFormValues, userId: string) {
-    const normalizeId = (v?: unknown) => (typeof v === "string" && v.trim().length > 0 ? v : null);
-    const normalizeString = (v?: unknown) => (typeof v === "string" && v.trim().length > 0 ? v : null);
-    const normalizeInt = (v?: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
-
     return await prisma.$transaction(async (tx: any) => {
+      const assetData = await resolvePlacement(tx, sanitizeAssetInput(data));
       const asset = await tx.asset.create({
         data: {
-          name: data.name,
-          serialNumber: data.serialNumber,
-          category: data.category,
-          status: data.status,
-          locationId: normalizeId(data.locationId),
-          rackId: normalizeId(data.rackId),
-          serverType: normalizeString(data.serverType),
-          cpuType: normalizeString(data.cpuType),
-          cpuSocketNumber: normalizeInt(data.cpuSocketNumber),
-          cpuCore: normalizeInt(data.cpuCore),
-          memoryType: normalizeString(data.memoryType),
-          memorySize: normalizeInt(data.memorySize),
-          memorySlotUsed: normalizeInt(data.memorySlotUsed),
-          memorySpeed: normalizeInt(data.memorySpeed),
-          diskOsType: normalizeString(data.diskOsType),
-          diskOsNumber: normalizeInt(data.diskOsNumber),
-          diskOsSize: normalizeInt(data.diskOsSize),
-          diskDataType: normalizeString(data.diskDataType),
-          diskDataNumber: normalizeInt(data.diskDataNumber),
-          diskDataSize: normalizeInt(data.diskDataSize),
+          ...assetData,
           auditLogs: {
             create: {
               action: 'CREATE',
               userId: userId,
-              details: `Initial entry created with status: ${data.status}`
+              details: `Initial entry created with status: ${assetData.status}`
             }
           }
         }
@@ -93,10 +176,6 @@ export const AssetService = {
   },
 
   async updateAsset(assetId: string, data: AssetFormValues, userId: string) {
-    const normalizeId = (v?: string) => (typeof v === "string" && v.trim().length > 0 ? v : null);
-    const normalizeString = (v?: unknown) => (typeof v === "string" && v.trim().length > 0 ? v : null);
-    const normalizeInt = (v?: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
-
     return await prisma.$transaction(async (tx: any) => {
       const existing = await tx.asset.findUnique({
         where: { id: assetId },
@@ -112,31 +191,11 @@ export const AssetService = {
       });
 
       if (!existing) throw new Error("Asset not found");
+      const assetData = await resolvePlacement(tx, sanitizeAssetInput(data));
 
       const updated = await tx.asset.update({
         where: { id: assetId },
-        data: {
-          name: data.name,
-          serialNumber: data.serialNumber,
-          category: data.category,
-          status: data.status,
-          locationId: normalizeId(data.locationId as any),
-          rackId: normalizeId(data.rackId as any),
-          serverType: normalizeString(data.serverType),
-          cpuType: normalizeString(data.cpuType),
-          cpuSocketNumber: normalizeInt(data.cpuSocketNumber),
-          cpuCore: normalizeInt(data.cpuCore),
-          memoryType: normalizeString(data.memoryType),
-          memorySize: normalizeInt(data.memorySize),
-          memorySlotUsed: normalizeInt(data.memorySlotUsed),
-          memorySpeed: normalizeInt(data.memorySpeed),
-          diskOsType: normalizeString(data.diskOsType),
-          diskOsNumber: normalizeInt(data.diskOsNumber),
-          diskOsSize: normalizeInt(data.diskOsSize),
-          diskDataType: normalizeString(data.diskDataType),
-          diskDataNumber: normalizeInt(data.diskDataNumber),
-          diskDataSize: normalizeInt(data.diskDataSize),
-        },
+        data: assetData,
       });
 
       await tx.auditLog.create({
@@ -220,5 +279,7 @@ export const AssetService = {
 
       return updated;
     });
-  }
+  },
+
+  isRackRequiredCategory,
 };
