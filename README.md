@@ -17,6 +17,7 @@ Implemented well today:
 - rack layout, cross-facility placement flows, utilization summaries, and conflict guardrails
 - public IP range management
 - private IP range and inventory management
+- network audit trail coverage for IP range, status, assignment, and deletion changes
 - persisted products / application portfolio CRUD
 - product option catalogs for categories, domains, support teams, and business owners
 - product relationships to assets, licenses, and user-backed technical owners
@@ -58,7 +59,7 @@ The working roadmap is tracked in [milestones.md](./milestones.md).
 - Facility Management
   datacenters, warehouses, racks, storage inventory, rack utilization, and rack layout designer
 - Network Management
-  public/private IP ranges, inventory, status transitions, and assignment metadata
+  public/private IP ranges, inventory, status transitions, assignment metadata, and audit trail coverage
 - Products / Application Portfolio
   product/application CRUD, configurable catalogs, ownership, and asset/license relationships
 - User Management

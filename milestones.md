@@ -149,7 +149,7 @@ Support datacenter, warehouse, rack, and rack-layout workflows for real infrastr
 
 ---
 
-## Milestone 4: Network Management (95% Complete)
+## Milestone 4: Network Management (97% Complete)
 
 **Goal**
 
@@ -167,6 +167,7 @@ Manage public and private address inventory, assignment, reservation, and operat
 - [x] Private networking validation now enforces RFC1918 space, CIDR boundary checks, and bounded bulk subnet registration.
 - [x] Utilization and assignment summaries now include subnet grouping, numeric IP sorting, and status rollups for private inventory.
 - [x] Public and private IP states now support Hardware, VM, and Other assignment target metadata with required validation by status.
+- [x] Public and private network range, IP status, assignment, and deletion mutations now write audit records for operational traceability.
 - [ ] Authenticated browser-level validation should still be completed against real operator workflows in deployed mode.
 
 **Deliverables**
@@ -179,6 +180,7 @@ Manage public and private address inventory, assignment, reservation, and operat
 - [x] Private IP registration UI and endpoint coverage
 - [x] Stronger subnet/range constraints for private networking
 - [x] Improved IP utilization summaries and assignment views
+- [x] Audit trail coverage for public/private IP ranges, assignment metadata, and address-state changes
 
 **Exit Criteria**
 

@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { z } from "zod";
 import { authOptions } from "@/lib/auth";
 import { NetworkService } from "@/services/networkService";
+import { writeAuditLog } from "@/lib/audit";
 
 const CreateRangeSchema = z.object({
   network: z.string().min(1),
@@ -77,6 +78,16 @@ export async function POST(req: Request) {
       assetId: null,
       assignmentTargetType: null,
       assignmentTargetLabel: null,
+    });
+    await writeAuditLog({
+      action: "NETWORK_PRIVATE_RANGE_CREATE",
+      userId: session.user.id,
+      details: {
+        cidr: `${parsed.data.network}/${parsed.data.prefix}`,
+        network: parsed.data.network,
+        prefix: parsed.data.prefix,
+        createdCount: created.created.length,
+      },
     });
     return NextResponse.json(created, { status: 201 });
   } catch (error) {

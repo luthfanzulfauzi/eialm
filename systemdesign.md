@@ -10,7 +10,7 @@ Last reviewed against the repository on April 22, 2026.
 - Authentication, RBAC, user management, password change, login timeout, and protected API/page access are implemented.
 - Dashboard summary cards and recent activity are implemented; expired/expiring operational sections and global search are still missing.
 - Asset hardware CRUD, audit trail, CSV import/export, advanced asset filtering, pagination, placement validation, datacenter/warehouse CRUD, rack CRUD, warehouse storage views, rack utilization summaries, and cross-facility rack layout placement flows are implemented.
-- Public and private IP inventory management are implemented, including ranges, generated IP inventory, status transitions, and assignment target metadata.
+- Public and private IP inventory management are implemented, including ranges, generated IP inventory, status transitions, assignment target metadata, and audit logging for network mutations.
 - License CRUD, assignment, and expiry views are implemented.
 - Products / Application is now a persisted module with product CRUD, configurable option catalogs, asset/license relationships, business owners, and user-backed technical owners. The latest technical-owner migration still needs deployed validation.
 - Settings includes password change, login timeout, and product dropdown catalog management.
@@ -118,7 +118,7 @@ prisma/
 - `License`: optional key/file, expiry state, asset assignment, and product relationships.
 - `Product`: portfolio record with environment, lifecycle, criticality, documentation, notes, option-backed category/domain/team/business owner, user-backed technical owner, assets, and licenses.
 - `ProductOption`: configurable dropdown catalog for product categories, business domains, support teams, and business owners.
-- `AuditLog`: asset and platform activity records.
+- `AuditLog`: asset, network, and platform activity records.
 
 ## Remaining Design Gaps
 

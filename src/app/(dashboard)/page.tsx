@@ -30,6 +30,22 @@ type DeleteDetails = {
   category?: string;
 };
 
+type NetworkDetails = {
+  address?: string;
+  assetId?: string | null;
+  assignmentTargetLabel?: string | null;
+  assignmentTargetType?: string | null;
+  cidr?: string;
+  createdCount?: number;
+  ipId?: string;
+  mode?: string;
+  network?: string;
+  prefix?: number;
+  rangeId?: string;
+  size?: number;
+  status?: string;
+};
+
 const safeParseJson = <T,>(value: string): T | null => {
   try {
     return JSON.parse(value) as T;
@@ -48,7 +64,7 @@ export default async function DashboardPage() {
     prisma.license.count(), // Counting total managed licenses
   ]);
 
-  // 2. Fetch real recent audit logs for the movement trail
+  // 2. Fetch real recent audit logs for the global activity feed
   const rawLogs = await prisma.auditLog.findMany({
     take: 30,
     orderBy: { createdAt: 'desc' },
@@ -61,7 +77,8 @@ export default async function DashboardPage() {
   const parsed = rawLogs.map((log) => {
     const asUpdate = safeParseJson<UpdateDetails>(log.details);
     const asDelete = safeParseJson<DeleteDetails>(log.details);
-    return { log, asUpdate, asDelete };
+    const asNetwork = safeParseJson<NetworkDetails>(log.details);
+    return { log, asUpdate, asDelete, asNetwork };
   });
 
   const rackIds = new Set<string>();
@@ -105,6 +122,90 @@ export default async function DashboardPage() {
 
   const toTitleCase = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
 
+  const formatEnum = (value?: string | null) => {
+    if (!value) return null;
+    return value
+      .split("_")
+      .filter(Boolean)
+      .map((part) => toTitleCase(part))
+      .join(" ");
+  };
+
+  const auditScope = (action: string) => {
+    if (action.startsWith("NETWORK_")) return "Network Event";
+    if (["CREATE", "UPDATE", "MOVE", "DELETE"].includes(action)) return "Asset Event";
+    return "Platform Event";
+  };
+
+  const formatNetworkEvent = (action: string, details: NetworkDetails | null) => {
+    const networkType = action.includes("_PUBLIC_") ? "Public" : action.includes("_PRIVATE_") ? "Private" : "Network";
+    const addressOrRange = details?.address ?? details?.cidr ?? details?.network ?? "IP inventory";
+    const status = formatEnum(details?.status);
+    const targetType = formatEnum(details?.assignmentTargetType);
+    const target = details?.assignmentTargetLabel;
+    const count = typeof details?.createdCount === "number" ? `${details.createdCount} address${details.createdCount === 1 ? "" : "es"}` : null;
+
+    const detailParts = [
+      status ? `Status: ${status}` : null,
+      targetType || target ? `Target: ${targetType ?? "Target"}${target ? ` - ${target}` : ""}` : null,
+      count ? `Created: ${count}` : null,
+    ].filter(Boolean);
+
+    if (action.endsWith("_RANGE_CREATE")) {
+      return {
+        title: `Created ${networkType.toLowerCase()} IP range ${addressOrRange}`,
+        details: detailParts.join(" · "),
+      };
+    }
+
+    if (action.endsWith("_RANGE_UPDATE")) {
+      return {
+        title: `Updated ${networkType.toLowerCase()} IP range ${addressOrRange}`,
+        details: detailParts.join(" · "),
+      };
+    }
+
+    if (action.endsWith("_RANGE_DELETE")) {
+      return {
+        title: `Deleted ${networkType.toLowerCase()} IP range`,
+        details: details?.rangeId ? `Range ID: ${details.rangeId}` : undefined,
+      };
+    }
+
+    if (action.endsWith("_IP_CREATE")) {
+      return {
+        title: `Registered ${networkType.toLowerCase()} IP ${addressOrRange}`,
+        details: detailParts.join(" · "),
+      };
+    }
+
+    if (action === "NETWORK_IP_ASSIGNMENT_UPDATE") {
+      return {
+        title: `Updated IP assignment for ${addressOrRange}`,
+        details: detailParts.join(" · "),
+      };
+    }
+
+    if (action.endsWith("_IP_UPDATE")) {
+      return {
+        title: `Updated ${networkType.toLowerCase()} IP ${addressOrRange}`,
+        details: detailParts.join(" · "),
+      };
+    }
+
+    if (action.endsWith("_IP_DELETE")) {
+      return {
+        title: `Deleted ${networkType.toLowerCase()} IP`,
+        details: details?.ipId ? `IP ID: ${details.ipId}` : undefined,
+      };
+    }
+
+    return {
+      title: action,
+      details: detailParts.join(" · "),
+    };
+  };
+
   const formatUpdate = (log: (typeof parsed)[number]["log"], details: UpdateDetails) => {
     const before = details.before ?? {};
     const after = details.after ?? {};
@@ -146,9 +247,22 @@ export default async function DashboardPage() {
     };
   };
 
-  const items = parsed.map(({ log, asUpdate, asDelete }) => {
+  const items = parsed.map(({ log, asUpdate, asDelete, asNetwork }) => {
     const by = log.user?.name ? `by ${log.user.name}` : null;
     const withBy = (details?: string) => (by ? (details ? `${details} · ${by}` : by) : details);
+    const scope = auditScope(log.action);
+
+    if (log.action.startsWith("NETWORK_")) {
+      const formatted = formatNetworkEvent(log.action, asNetwork);
+      return {
+        id: log.id,
+        action: log.action,
+        scope,
+        title: formatted.title,
+        details: withBy(formatted.details || undefined),
+        createdAt: log.createdAt,
+      };
+    }
 
     if (log.action === "MOVE") {
       const name = log.asset?.name ?? "Asset";
@@ -156,10 +270,10 @@ export default async function DashboardPage() {
       return {
         id: log.id,
         action: log.action,
+        scope,
         title: `Moved ${name}${serialNumber ? ` (${serialNumber})` : ""}`,
         details: withBy(log.details),
         createdAt: log.createdAt,
-        isMovement: true,
       };
     }
 
@@ -169,10 +283,10 @@ export default async function DashboardPage() {
       return {
         id: log.id,
         action: log.action,
+        scope,
         title: `Created ${name}${serialNumber ? ` (${serialNumber})` : ""}`,
         details: withBy(log.details),
         createdAt: log.createdAt,
-        isMovement: false,
       };
     }
 
@@ -182,10 +296,10 @@ export default async function DashboardPage() {
       return {
         id: log.id,
         action: log.action,
+        scope,
         title: `Deleted ${name}${serialNumber ? ` (${serialNumber})` : ""}`,
         details: withBy(asDelete?.category ? `Category: ${asDelete.category}` : undefined),
         createdAt: log.createdAt,
-        isMovement: false,
       };
     }
 
@@ -194,45 +308,26 @@ export default async function DashboardPage() {
       return {
         id: log.id,
         action: log.action,
+        scope,
         title: formatted.title,
         details: withBy(formatted.details),
         createdAt: log.createdAt,
-        isMovement: formatted.isMovement,
       };
     }
 
     return {
       id: log.id,
       action: log.action,
+      scope,
       title: log.action,
       details: withBy(log.details.length > 140 ? `${log.details.slice(0, 140)}…` : log.details),
       createdAt: log.createdAt,
-      isMovement: false,
     };
   });
 
-  const selected: typeof items = [];
-  const selectedIds = new Set<string>();
-
-  for (const item of items) {
-    if (!item.isMovement) continue;
-    if (selected.length >= 6) break;
-    selected.push(item);
-    selectedIds.add(item.id);
-  }
-
-  if (selected.length < 6) {
-    for (const item of items) {
-      if (selected.length >= 6) break;
-      if (selectedIds.has(item.id)) continue;
-      selected.push(item);
-      selectedIds.add(item.id);
-    }
-  }
-
-  const recentItems = selected.sort(
+  const recentItems = items.sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  );
+  ).slice(0, 8);
 
   const stats = [
     { 
@@ -270,8 +365,8 @@ export default async function DashboardPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 bg-[#151921] border border-slate-800 rounded-2xl p-6">
-          <h3 className="text-lg font-bold text-white mb-6">Recent Asset Movements</h3>
-          <AuditTrail items={recentItems.map(({ isMovement, ...item }) => item)} />
+          <h3 className="text-lg font-bold text-white mb-6">Global Audit Feed</h3>
+          <AuditTrail items={recentItems} />
         </div>
         
         <div className="bg-[#151921] border border-slate-800 rounded-2xl p-6">

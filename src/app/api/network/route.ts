@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { IPAssignmentTargetType, IPStatus } from "@prisma/client";
 import { z } from "zod";
+import { writeAuditLog } from "@/lib/audit";
 
 const CreatePrivateIpSchema = z
   .object({
@@ -181,16 +182,56 @@ export async function POST(req: Request) {
   try {
     if ("action" in parsed.data && parsed.data.action === "createPrivate") {
       const created = await NetworkService.createPrivateIPs(parsed.data);
+      await writeAuditLog({
+        action: "NETWORK_PRIVATE_IP_CREATE",
+        userId: session.user.id,
+        details: {
+          mode: parsed.data.mode,
+          address: parsed.data.address,
+          prefix: parsed.data.prefix ?? null,
+          createdCount: created.created.length,
+          status: parsed.data.status ?? IPStatus.AVAILABLE,
+          assignmentTargetType: parsed.data.assignmentTargetType ?? null,
+          assignmentTargetLabel: parsed.data.assignmentTargetLabel ?? null,
+          assetId: parsed.data.assetId ?? null,
+        },
+      });
       return NextResponse.json(created, { status: 201 });
     }
 
     if ("action" in parsed.data && parsed.data.action === "assign") {
       const data = await NetworkService.updateIPAssignment(parsed.data.ipId, parsed.data.assetId ?? null);
+      await writeAuditLog({
+        action: "NETWORK_IP_ASSIGNMENT_UPDATE",
+        userId: session.user.id,
+        assetId: data.assetId,
+        details: {
+          ipId: data.id,
+          address: data.address,
+          status: data.status,
+          assetId: data.assetId,
+          assignmentTargetType: data.assignmentTargetType,
+          assignmentTargetLabel: data.assignmentTargetLabel,
+        },
+      });
       return NextResponse.json(data);
     }
 
     if ("assetId" in parsed.data && "ipId" in parsed.data) {
       const data = await NetworkService.updateIPAssignment(parsed.data.ipId, parsed.data.assetId ?? null);
+      await writeAuditLog({
+        action: "NETWORK_IP_ASSIGNMENT_UPDATE",
+        userId: session.user.id,
+        assetId: data.assetId,
+        details: {
+          ipId: data.id,
+          address: data.address,
+          status: data.status,
+          assetId: data.assetId,
+          assignmentTargetType: data.assignmentTargetType,
+          assignmentTargetLabel: data.assignmentTargetLabel,
+        },
+      });
       return NextResponse.json(data);
     }
 
@@ -226,10 +267,36 @@ export async function PATCH(req: Request) {
   try {
     if (parsed.data.action === "assign") {
       const data = await NetworkService.updateIPAssignment(parsed.data.ipId, parsed.data.assetId ?? null);
+      await writeAuditLog({
+        action: "NETWORK_IP_ASSIGNMENT_UPDATE",
+        userId: session.user.id,
+        assetId: data.assetId,
+        details: {
+          ipId: data.id,
+          address: data.address,
+          status: data.status,
+          assetId: data.assetId,
+          assignmentTargetType: data.assignmentTargetType,
+          assignmentTargetLabel: data.assignmentTargetLabel,
+        },
+      });
       return NextResponse.json(data);
     }
 
     const data = await NetworkService.updatePrivateIpStatus(parsed.data.ipId, parsed.data);
+    await writeAuditLog({
+      action: "NETWORK_PRIVATE_IP_UPDATE",
+      userId: session.user.id,
+      assetId: data.assetId,
+      details: {
+        ipId: data.id,
+        address: data.address,
+        status: data.status,
+        assignmentTargetType: data.assignmentTargetType,
+        assignmentTargetLabel: data.assignmentTargetLabel,
+        assetId: data.assetId,
+      },
+    });
     return NextResponse.json(data);
   } catch (error) {
     return formatNetworkError(error);
@@ -256,6 +323,13 @@ export async function DELETE(req: Request) {
 
   try {
     await NetworkService.deletePrivateIp(parsed.data.ipId);
+    await writeAuditLog({
+      action: "NETWORK_PRIVATE_IP_DELETE",
+      userId: session.user.id,
+      details: {
+        ipId: parsed.data.ipId,
+      },
+    });
     return NextResponse.json({ ok: true });
   } catch (error) {
     return formatNetworkError(error);

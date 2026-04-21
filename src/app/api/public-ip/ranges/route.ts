@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { z } from "zod";
 import { PublicIpService } from "@/services/publicIpService";
+import { writeAuditLog } from "@/lib/audit";
 
 const CreateRangeSchema = z.object({
   network: z.string().min(1),
@@ -43,6 +44,17 @@ export async function POST(req: Request) {
 
   try {
     const created = await PublicIpService.createRange(parsed.data);
+    await writeAuditLog({
+      action: "NETWORK_PUBLIC_RANGE_CREATE",
+      userId: session.user.id,
+      details: {
+        rangeId: created.id,
+        cidr: created.cidr,
+        network: created.network,
+        prefix: created.prefix,
+        size: created.size,
+      },
+    });
     return NextResponse.json(created, { status: 201 });
   } catch (e: any) {
     if (e?.code === "OVERLAP") {

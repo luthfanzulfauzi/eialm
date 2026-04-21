@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { z } from "zod";
 import { IPAssignmentTargetType, IPStatus } from "@prisma/client";
 import { PublicIpService } from "@/services/publicIpService";
+import { writeAuditLog } from "@/lib/audit";
 
 const UpdateStatusSchema = z.object({
   status: z.nativeEnum(IPStatus),
@@ -32,6 +33,19 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
   try {
     const updated = await PublicIpService.updateIpStatus(params.id, parsed.data);
+    await writeAuditLog({
+      action: "NETWORK_PUBLIC_IP_UPDATE",
+      userId: session.user.id,
+      assetId: updated.assetId,
+      details: {
+        ipId: updated.id,
+        address: updated.address,
+        status: updated.status,
+        assignmentTargetType: updated.assignmentTargetType,
+        assignmentTargetLabel: updated.assignmentTargetLabel,
+        assetId: updated.assetId,
+      },
+    });
     return NextResponse.json(updated);
   } catch (e: any) {
     if (e?.code === "NOT_FOUND") return new NextResponse("Not Found", { status: 404 });
@@ -63,6 +77,13 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
 
   try {
     await PublicIpService.deleteIp(params.id);
+    await writeAuditLog({
+      action: "NETWORK_PUBLIC_IP_DELETE",
+      userId: session.user.id,
+      details: {
+        ipId: params.id,
+      },
+    });
     return NextResponse.json({ ok: true });
   } catch (e: any) {
     if (e?.code === "NOT_FOUND") return new NextResponse("Not Found", { status: 404 });

@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { z } from "zod";
 import { authOptions } from "@/lib/auth";
 import { NetworkService } from "@/services/networkService";
+import { writeAuditLog } from "@/lib/audit";
 
 const UpdateRangeSchema = z.object({
   network: z.string().min(1),
@@ -65,6 +66,17 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
   try {
     const updated = await NetworkService.updatePrivateRange(params.id, parsed.data);
+    await writeAuditLog({
+      action: "NETWORK_PRIVATE_RANGE_UPDATE",
+      userId: session.user.id,
+      details: {
+        rangeId: updated.id,
+        cidr: updated.cidr,
+        network: updated.network,
+        prefix: updated.prefix,
+        size: updated.size,
+      },
+    });
     return NextResponse.json(updated);
   } catch (error) {
     return formatRangeError(error);
@@ -79,6 +91,13 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
 
   try {
     await NetworkService.deletePrivateRange(params.id);
+    await writeAuditLog({
+      action: "NETWORK_PRIVATE_RANGE_DELETE",
+      userId: session.user.id,
+      details: {
+        rangeId: params.id,
+      },
+    });
     return NextResponse.json({ ok: true });
   } catch (error) {
     return formatRangeError(error);
