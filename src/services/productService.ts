@@ -75,7 +75,6 @@ const groupProductOptions = async () => {
       BUSINESS_DOMAIN: options.filter((option) => option.type === ProductOptionType.BUSINESS_DOMAIN),
       SUPPORT_TEAM: options.filter((option) => option.type === ProductOptionType.SUPPORT_TEAM),
       BUSINESS_OWNER: options.filter((option) => option.type === ProductOptionType.BUSINESS_OWNER),
-      TECHNICAL_OWNER: [],
     },
   };
 };

@@ -27,8 +27,7 @@ type ProductOptionType =
   | "CATEGORY"
   | "BUSINESS_DOMAIN"
   | "SUPPORT_TEAM"
-  | "BUSINESS_OWNER"
-  | "TECHNICAL_OWNER";
+  | "BUSINESS_OWNER";
 
 type ProductOption = {
   id: string;
@@ -119,7 +118,6 @@ const emptyOptions: ProductOptionsByType = {
   BUSINESS_DOMAIN: [],
   SUPPORT_TEAM: [],
   BUSINESS_OWNER: [],
-  TECHNICAL_OWNER: [],
 };
 
 const emptyForm: ProductFormState = {
@@ -207,7 +205,6 @@ export default function ProductsPage() {
     BUSINESS_DOMAIN: "",
     SUPPORT_TEAM: "",
     BUSINESS_OWNER: "",
-    TECHNICAL_OWNER: "",
   });
   const [editingOptionId, setEditingOptionId] = useState<string | null>(null);
   const [editingOptionValue, setEditingOptionValue] = useState("");

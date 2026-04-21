@@ -78,10 +78,7 @@ export const productUpdateSchema = productSchema.partial().refine((data) => {
 });
 
 export const productOptionSchema = z.object({
-  type: z.nativeEnum(ProductOptionType).refine(
-    (type) => type !== ProductOptionType.TECHNICAL_OWNER,
-    "Technical owners are managed from User Management."
-  ),
+  type: z.nativeEnum(ProductOptionType),
   value: z.string().trim().min(1, "Value is required.").max(120, "Value must be 120 characters or fewer."),
   sortOrder: z.coerce.number().int().min(0).max(9999).optional(),
 });

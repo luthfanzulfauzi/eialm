@@ -73,7 +73,6 @@ enum ProductOptionType {
   BUSINESS_DOMAIN
   SUPPORT_TEAM
   BUSINESS_OWNER
-  TECHNICAL_OWNER
 }
 
 model User {

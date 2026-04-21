@@ -402,7 +402,7 @@ Target deliverables:
 - Three backup files are still tracked and appear residual: `src/app/(dashboard)/page.tsx.backup`, `src/lib/validations/auth.ts.backup`, and `src/types/index.d.ts.backup`.
 - `src/hooks/useDebounce.ts` has no current imports.
 - `src/components/ui/index.ts` has no current imports because call sites import UI components directly.
-- The `TECHNICAL_OWNER` product option enum/value path is now residual after the move to user-backed technical owners; old rows may need a cleanup migration after validation.
+- The `TECHNICAL_OWNER` product option enum/value path now has a cleanup migration after the move to user-backed technical owners, validated in local Docker.
 - Product technical-owner work is in an uncommitted state across `prisma/schema.prisma`, `src/app/(dashboard)/products/page.tsx`, `src/app/(dashboard)/settings/page.tsx`, `src/lib/validations/product.ts`, `src/services/productService.ts`, and `prisma/migrations/20260421103000_product_technical_owner_users/`.
 - Static verification was limited because `node` and `npm` were not available in the current shell PATH.
 

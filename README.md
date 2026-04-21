@@ -227,7 +227,7 @@ There are still a few production-readiness concerns to address:
 - Residual tracked backup files exist under `src/` and should be removed once confirmed unnecessary:
   `src/app/(dashboard)/page.tsx.backup`, `src/lib/validations/auth.ts.backup`, and `src/types/index.d.ts.backup`.
 - `src/hooks/useDebounce.ts` and `src/components/ui/index.ts` appear unused in the current source tree.
-- The old `TECHNICAL_OWNER` product option path is residual after moving technical owners to `User`; existing rows may need a cleanup migration after validation.
+- The old `TECHNICAL_OWNER` product option path has a cleanup migration and was validated in local Docker.
 
 ## Roadmap
 
