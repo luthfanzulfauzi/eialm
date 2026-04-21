@@ -435,7 +435,12 @@ export default function ProductsPage() {
       return;
     }
 
-    if (!form.categoryOptionId || !form.businessOwnerOptionId || !form.technicalOwnerUserId) {
+    const isCreating = !editingProduct;
+    const categoryOptionId = form.categoryOptionId || editingProduct?.categoryOptionId || "";
+    const businessOwnerOptionId = form.businessOwnerOptionId || editingProduct?.businessOwnerOptionId || "";
+    const technicalOwnerUserId = form.technicalOwnerUserId || editingProduct?.technicalOwnerUserId || "";
+
+    if (!categoryOptionId || !businessOwnerOptionId || (isCreating && !technicalOwnerUserId)) {
       setFormError("Category, business owner, and technical owner are required.");
       return;
     }
@@ -444,19 +449,31 @@ export default function ProductsPage() {
       setSaving(true);
       const endpoint = editingProduct ? `/api/products/${editingProduct.id}` : "/api/products";
       const method = editingProduct ? "PATCH" : "POST";
+      const body: Record<string, unknown> = {
+        name: form.name.trim(),
+        code: form.code.trim().toUpperCase(),
+        description: form.description.trim() || null,
+        environment: form.environment,
+        lifecycle: form.lifecycle,
+        criticality: form.criticality,
+        documentationUrl: form.documentationUrl.trim() || null,
+        notes: form.notes.trim() || null,
+        categoryOptionId,
+        businessDomainOptionId: form.businessDomainOptionId || null,
+        supportTeamOptionId: form.supportTeamOptionId || null,
+        businessOwnerOptionId,
+        assetIds: form.assetIds,
+        licenseIds: form.licenseIds,
+      };
+
+      if (technicalOwnerUserId) {
+        body.technicalOwnerUserId = technicalOwnerUserId;
+      }
+
       const res = await fetch(endpoint, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...form,
-          name: form.name.trim(),
-          code: form.code.trim().toUpperCase(),
-          description: form.description.trim() || null,
-          documentationUrl: form.documentationUrl.trim() || null,
-          notes: form.notes.trim() || null,
-          businessDomainOptionId: form.businessDomainOptionId || null,
-          supportTeamOptionId: form.supportTeamOptionId || null,
-        }),
+        body: JSON.stringify(body),
       });
 
       const payload = await res.json().catch(() => ({} as any));
