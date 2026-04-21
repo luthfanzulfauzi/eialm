@@ -16,19 +16,20 @@ Implemented well today:
 - datacenter, warehouse, and rack management
 - rack layout and placement flows
 - public IP range management
-- private IP inventory listing
-- products / application portfolio dummy module
+- private IP range and inventory management
+- persisted products / application portfolio CRUD
+- product option catalogs for categories, domains, support teams, and business owners
+- product relationships to assets, licenses, and user-backed technical owners
 - asset CSV import/export
 - dashboard summary cards and recent activity
 - system settings for password change and login timeout
 
 Still in progress:
 
-- full license CRUD and license API routes
-- persisted product / application portfolio schema and CRUD
-- private IP create/manage flows
+- product portfolio polish, migration validation, and end-to-end browser testing
 - expired and expiring dashboard sections
 - global search
+- advanced filtering, pagination, and unified toast notifications
 - production ingress, backup, and deployment hardening
 
 The working roadmap is tracked in [milestones.md](./milestones.md).
@@ -57,13 +58,13 @@ The working roadmap is tracked in [milestones.md](./milestones.md).
 - Facility Management
   datacenters, warehouses, racks, rack layout designer
 - Network Management
-  public IP ranges, IP assignment, private IP inventory
+  public/private IP ranges, inventory, status transitions, and assignment metadata
 - Products / Application Portfolio
-  planned portfolio layer for business applications and their infrastructure relationships
+  product/application CRUD, configurable catalogs, ownership, and asset/license relationships
 - User Management
   admin-only CRUD and role updates
 - Settings
-  password change and login timeout policy
+  password change, login timeout policy, and product dropdown catalog management
 
 ## Repository Structure
 
@@ -184,14 +185,26 @@ Current API routes include:
 - `/api/racks`
 - `/api/racks/[id]`
 - `/api/network`
+- `/api/private-ip/ranges`
+- `/api/private-ip/ranges/[id]`
 - `/api/public-ip/ranges`
+- `/api/public-ip/ranges/[id]`
+- `/api/public-ip/ranges/[id]/ips`
+- `/api/public-ip/ips`
+- `/api/public-ip/ips/[id]`
+- `/api/public-ip/inventory`
+- `/api/products`
+- `/api/products/[id]`
+- `/api/product-options`
+- `/api/product-options/[id]`
+- `/api/licenses`
+- `/api/licenses/[id]`
+- `/api/licenses/[id]/assign`
 - `/api/settings/password`
 - `/api/settings/login-timeout`
 - `/api/activity`
 
-Some UI areas are ahead of backend completion, especially around licenses.
-
-The new Products / Application page is intentionally a dummy planning surface in the current iteration. It exists to establish navigation, UX direction, and relationship planning before schema and CRUD implementation.
+The Products / Application page is now a persisted implementation slice. It includes product CRUD, summary metrics, local search, lifecycle filtering, asset/license relationship mapping, user-backed technical owners, and admin-managed dropdown catalogs. The newest technical-owner migration still needs deployed validation against existing product data.
 
 ## Build Notes
 
@@ -206,22 +219,25 @@ There are still a few production-readiness concerns to address:
 
 ## Known Gaps
 
-- License Manager is not complete yet.
-- Products / Application is currently a dummy page only and does not persist records yet.
+- Products / Application needs end-to-end validation after the technical-owner migration and further UX polish.
 - Global search is still a placeholder.
-- Advanced filtering and toast notifications are still pending.
+- Advanced filtering, pagination, and toast notifications are still pending.
+- Dashboard expired/expiring sections are still incomplete.
 - Production deployment needs ingress, backup, and operational hardening work.
+- Residual tracked backup files exist under `src/` and should be removed once confirmed unnecessary:
+  `src/app/(dashboard)/page.tsx.backup`, `src/lib/validations/auth.ts.backup`, and `src/types/index.d.ts.backup`.
+- `src/hooks/useDebounce.ts` and `src/components/ui/index.ts` appear unused in the current source tree.
+- The old `TECHNICAL_OWNER` product option path is residual after moving technical owners to `User`; existing rows may need a cleanup migration after validation.
 
 ## Roadmap
 
 The next major priorities are:
 
-1. move Products / Application from dummy page to real schema and CRUD
-2. finish license CRUD and related APIs
-3. complete private IP management flows
-4. add expired and expiring operational widgets to the dashboard
-5. implement global search
-6. harden production deployment and operations
+1. validate the Products / Application technical-owner migration and CRUD flow in Docker
+2. add expired and expiring operational widgets to the dashboard
+3. implement global search
+4. improve advanced filters, pagination, and feedback/toast UX
+5. harden production deployment and operations
 
 See [milestones.md](./milestones.md) for the milestone-plus-deliverables plan.
 

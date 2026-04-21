@@ -88,6 +88,7 @@ model User {
   loginTimeout  Int        @default(30) // Minutes, only manageable by Admin
   
   auditLogs     AuditLog[]
+  technicalProducts Product[] @relation("ProductTechnicalOwnerUser")
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
 }
@@ -257,8 +258,8 @@ model Product {
   supportTeamOption      ProductOption?      @relation("ProductSupportTeamOption", fields: [supportTeamOptionId], references: [id])
   businessOwnerOptionId  String
   businessOwnerOption    ProductOption       @relation("ProductBusinessOwnerOption", fields: [businessOwnerOptionId], references: [id])
-  technicalOwnerOptionId String
-  technicalOwnerOption   ProductOption       @relation("ProductTechnicalOwnerOption", fields: [technicalOwnerOptionId], references: [id])
+  technicalOwnerUserId   String?
+  technicalOwnerUser     User?               @relation("ProductTechnicalOwnerUser", fields: [technicalOwnerUserId], references: [id], onDelete: SetNull)
 
   assets           Asset[]
   licenses         License[]
@@ -283,7 +284,6 @@ model ProductOption {
   businessDomainProducts Product[] @relation("ProductBusinessDomainOption")
   supportTeamProducts    Product[] @relation("ProductSupportTeamOption")
   businessOwnerProducts  Product[] @relation("ProductBusinessOwnerOption")
-  technicalOwnerProducts Product[] @relation("ProductTechnicalOwnerOption")
 
   @@unique([type, value])
   @@index([type, sortOrder, value])

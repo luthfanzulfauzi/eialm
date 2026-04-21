@@ -66,7 +66,7 @@ export const productSchema = z.object({
   businessDomainOptionId: optionalTrimmedString,
   supportTeamOptionId: optionalTrimmedString,
   businessOwnerOptionId: z.string().trim().min(1, "Business owner is required."),
-  technicalOwnerOptionId: z.string().trim().min(1, "Technical owner is required."),
+  technicalOwnerUserId: z.string().trim().min(1, "Technical owner is required."),
   assetIds: relationIdList,
   licenseIds: relationIdList,
 });
@@ -78,7 +78,10 @@ export const productUpdateSchema = productSchema.partial().refine((data) => {
 });
 
 export const productOptionSchema = z.object({
-  type: z.nativeEnum(ProductOptionType),
+  type: z.nativeEnum(ProductOptionType).refine(
+    (type) => type !== ProductOptionType.TECHNICAL_OWNER,
+    "Technical owners are managed from User Management."
+  ),
   value: z.string().trim().min(1, "Value is required.").max(120, "Value must be 120 characters or fewer."),
   sortOrder: z.coerce.number().int().min(0).max(9999).optional(),
 });

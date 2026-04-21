@@ -10,8 +10,10 @@ import {
   Loader2,
   Pencil,
   Plus,
+  SlidersHorizontal,
   ShieldAlert,
   Trash2,
+  ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,9 +34,17 @@ type ProductOption = {
   id: string;
   type: ProductOptionType;
   value: string;
+  sortOrder?: number;
 };
 
 type ProductOptionsByType = Record<ProductOptionType, ProductOption[]>;
+
+type UserOption = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+};
 
 type AssetOption = {
   id: string;
@@ -66,12 +76,12 @@ type ProductRecord = {
   businessDomainOptionId: string | null;
   supportTeamOptionId: string | null;
   businessOwnerOptionId: string;
-  technicalOwnerOptionId: string;
+  technicalOwnerUserId: string | null;
   categoryOption: ProductOption;
   businessDomainOption: ProductOption | null;
   supportTeamOption: ProductOption | null;
   businessOwnerOption: ProductOption;
-  technicalOwnerOption: ProductOption;
+  technicalOwnerUser: UserOption | null;
   assets: AssetOption[];
   licenses: LicenseOption[];
   createdAt: string;
@@ -99,7 +109,7 @@ type ProductFormState = {
   businessDomainOptionId: string;
   supportTeamOptionId: string;
   businessOwnerOptionId: string;
-  technicalOwnerOptionId: string;
+  technicalOwnerUserId: string;
   assetIds: string[];
   licenseIds: string[];
 };
@@ -125,7 +135,7 @@ const emptyForm: ProductFormState = {
   businessDomainOptionId: "",
   supportTeamOptionId: "",
   businessOwnerOptionId: "",
-  technicalOwnerOptionId: "",
+  technicalOwnerUserId: "",
   assetIds: [],
   licenseIds: [],
 };
@@ -133,6 +143,13 @@ const emptyForm: ProductFormState = {
 const lifecycleOptions: ProductLifecycle[] = ["PLANNING", "ACTIVE", "MAINTENANCE", "RETIRED"];
 const environmentOptions: ProductEnvironment[] = ["PRODUCTION", "STAGING", "DEVELOPMENT", "SHARED"];
 const criticalityOptions: ProductCriticality[] = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
+
+const optionSections: { type: ProductOptionType; title: string; helper: string }[] = [
+  { type: "CATEGORY", title: "Category", helper: "Product or application classification values." },
+  { type: "BUSINESS_DOMAIN", title: "Business Domain", helper: "Business areas such as Finance, HR, or Operations." },
+  { type: "SUPPORT_TEAM", title: "Support Team", helper: "Teams responsible for support and operations." },
+  { type: "BUSINESS_OWNER", title: "Business Owner", helper: "Business-side contacts or accountable teams." },
+];
 
 const lifecycleTone: Record<ProductLifecycle, string> = {
   PLANNING: "border-amber-500/20 bg-amber-500/10 text-amber-300",
@@ -161,6 +178,7 @@ export default function ProductsPage() {
   const [products, setProducts] = useState<ProductRecord[]>([]);
   const [assets, setAssets] = useState<AssetOption[]>([]);
   const [licenses, setLicenses] = useState<LicenseOption[]>([]);
+  const [technicalOwners, setTechnicalOwners] = useState<UserOption[]>([]);
   const [productOptions, setProductOptions] = useState<ProductOptionsByType>(emptyOptions);
   const [summary, setSummary] = useState<ProductSummary>({
     total: 0,
@@ -175,11 +193,25 @@ export default function ProductsPage() {
   const [search, setSearch] = useState("");
   const [lifecycleFilter, setLifecycleFilter] = useState<"ALL" | ProductLifecycle>("ALL");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isOptionsModalOpen, setIsOptionsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<ProductRecord | null>(null);
   const [form, setForm] = useState<ProductFormState>(emptyForm);
+  const [technicalOwnerSearch, setTechnicalOwnerSearch] = useState("");
+  const [isTechnicalOwnerDropdownOpen, setIsTechnicalOwnerDropdownOpen] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [optionMessage, setOptionMessage] = useState<string | null>(null);
+  const [optionDrafts, setOptionDrafts] = useState<Record<ProductOptionType, string>>({
+    CATEGORY: "",
+    BUSINESS_DOMAIN: "",
+    SUPPORT_TEAM: "",
+    BUSINESS_OWNER: "",
+    TECHNICAL_OWNER: "",
+  });
+  const [editingOptionId, setEditingOptionId] = useState<string | null>(null);
+  const [editingOptionValue, setEditingOptionValue] = useState("");
+  const [busyOptionId, setBusyOptionId] = useState<string | null>(null);
 
   const canManage = session?.user?.role === "ADMIN" || session?.user?.role === "OPERATOR";
   const isAdmin = session?.user?.role === "ADMIN";
@@ -202,6 +234,7 @@ export default function ProductsPage() {
       setProducts(payload.products || []);
       setAssets(payload.assets || []);
       setLicenses(payload.licenses || []);
+      setTechnicalOwners(payload.technicalOwners || []);
       setProductOptions(payload.options?.byType || emptyOptions);
       setSummary(
         payload.summary || {
@@ -227,6 +260,15 @@ export default function ProductsPage() {
     void fetchProducts();
   }, []);
 
+  const refreshProductOptions = async () => {
+    const res = await fetch("/api/product-options", { cache: "no-store" });
+    const payload = await res.json().catch(() => ({} as any));
+    if (!res.ok) {
+      throw new Error(payload?.error || "Failed to load dropdown options");
+    }
+    setProductOptions(payload.byType || emptyOptions);
+  };
+
   const filteredProducts = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
 
@@ -248,7 +290,8 @@ export default function ProductsPage() {
         product.categoryOption?.value || "",
         product.businessDomainOption?.value || "",
         product.businessOwnerOption?.value || "",
-        product.technicalOwnerOption?.value || "",
+        product.technicalOwnerUser?.name || "",
+        product.technicalOwnerUser?.email || "",
         product.supportTeamOption?.value || "",
       ]
         .join(" ")
@@ -261,6 +304,8 @@ export default function ProductsPage() {
   const openCreateModal = () => {
     setEditingProduct(null);
     setForm(emptyForm);
+    setTechnicalOwnerSearch("");
+    setIsTechnicalOwnerDropdownOpen(false);
     setFormError(null);
     setIsModalOpen(true);
   };
@@ -280,10 +325,12 @@ export default function ProductsPage() {
       businessDomainOptionId: product.businessDomainOptionId || "",
       supportTeamOptionId: product.supportTeamOptionId || "",
       businessOwnerOptionId: product.businessOwnerOptionId,
-      technicalOwnerOptionId: product.technicalOwnerOptionId,
+      technicalOwnerUserId: product.technicalOwnerUserId || "",
       assetIds: product.assets.map((asset) => asset.id),
       licenseIds: product.licenses.map((license) => license.id),
     });
+    setTechnicalOwnerSearch(product.technicalOwnerUser?.name || "");
+    setIsTechnicalOwnerDropdownOpen(false);
     setFormError(null);
     setIsModalOpen(true);
   };
@@ -292,7 +339,94 @@ export default function ProductsPage() {
     setIsModalOpen(false);
     setEditingProduct(null);
     setForm(emptyForm);
+    setTechnicalOwnerSearch("");
+    setIsTechnicalOwnerDropdownOpen(false);
     setFormError(null);
+  };
+
+  const openOptionsModal = () => {
+    setOptionMessage(null);
+    setEditingOptionId(null);
+    setEditingOptionValue("");
+    setIsOptionsModalOpen(true);
+  };
+
+  const handleAddOption = async (type: ProductOptionType) => {
+    const value = optionDrafts[type].trim();
+    if (!value) return;
+
+    setOptionMessage(null);
+    setBusyOptionId(type);
+    try {
+      const res = await fetch("/api/product-options", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type, value }),
+      });
+      const payload = await res.json().catch(() => ({} as any));
+      if (!res.ok) {
+        throw new Error(payload?.error || "Failed to add dropdown value");
+      }
+
+      setOptionDrafts((current) => ({ ...current, [type]: "" }));
+      setOptionMessage("Dropdown value added.");
+      await refreshProductOptions();
+    } catch (error) {
+      setOptionMessage(error instanceof Error ? error.message : "Failed to add dropdown value");
+    } finally {
+      setBusyOptionId(null);
+    }
+  };
+
+  const handleSaveOption = async (option: ProductOption) => {
+    const value = editingOptionValue.trim();
+    if (!value) return;
+
+    setOptionMessage(null);
+    setBusyOptionId(option.id);
+    try {
+      const res = await fetch(`/api/product-options/${option.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ value }),
+      });
+      const payload = await res.json().catch(() => ({} as any));
+      if (!res.ok) {
+        throw new Error(payload?.error || "Failed to update dropdown value");
+      }
+
+      setEditingOptionId(null);
+      setEditingOptionValue("");
+      setOptionMessage("Dropdown value updated.");
+      await refreshProductOptions();
+      await fetchProducts(true);
+    } catch (error) {
+      setOptionMessage(error instanceof Error ? error.message : "Failed to update dropdown value");
+    } finally {
+      setBusyOptionId(null);
+    }
+  };
+
+  const handleDeleteOption = async (option: ProductOption) => {
+    const confirmed = window.confirm(`Delete dropdown value "${option.value}"?`);
+    if (!confirmed) return;
+
+    setOptionMessage(null);
+    setBusyOptionId(option.id);
+    try {
+      const res = await fetch(`/api/product-options/${option.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const payload = await res.json().catch(() => ({} as any));
+        throw new Error(payload?.error || "Failed to delete dropdown value");
+      }
+
+      setOptionMessage("Dropdown value deleted.");
+      await refreshProductOptions();
+    } catch (error) {
+      setOptionMessage(error instanceof Error ? error.message : "Failed to delete dropdown value");
+    } finally {
+      setBusyOptionId(null);
+    }
   };
 
   const handleSave = async (e: FormEvent) => {
@@ -304,7 +438,7 @@ export default function ProductsPage() {
       return;
     }
 
-    if (!form.categoryOptionId || !form.businessOwnerOptionId || !form.technicalOwnerOptionId) {
+    if (!form.categoryOptionId || !form.businessOwnerOptionId || !form.technicalOwnerUserId) {
       setFormError("Category, business owner, and technical owner are required.");
       return;
     }
@@ -423,6 +557,86 @@ export default function ProductsPage() {
     );
   };
 
+  const renderTechnicalOwnerSelect = () => {
+    const selectedTechnicalOwner = technicalOwners.find((user) => user.id === form.technicalOwnerUserId);
+    const normalizedSearch = technicalOwnerSearch.trim().toLowerCase();
+    const filteredTechnicalOwners = normalizedSearch
+      ? technicalOwners.filter((user) =>
+          [user.name, user.email, user.role]
+            .join(" ")
+            .toLowerCase()
+            .includes(normalizedSearch)
+        )
+      : technicalOwners;
+
+    return (
+      <div className="space-y-2">
+        <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">Technical Owner</div>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setIsTechnicalOwnerDropdownOpen((current) => !current)}
+            className="flex h-10 w-full items-center justify-between rounded-lg border border-slate-800 bg-slate-900/50 px-3 py-2 text-left text-sm text-white transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:border-blue-500"
+          >
+            <span className={selectedTechnicalOwner ? "text-white" : "text-slate-500"}>
+              {selectedTechnicalOwner
+                ? `${selectedTechnicalOwner.name} (${selectedTechnicalOwner.email})`
+                : "Select Technical Owner"}
+            </span>
+            <ChevronDown
+              size={16}
+              className={cn("shrink-0 text-slate-500 transition-transform", isTechnicalOwnerDropdownOpen && "rotate-180")}
+            />
+          </button>
+
+          {isTechnicalOwnerDropdownOpen ? (
+            <div className="absolute left-0 right-0 top-11 z-[60] rounded-xl border border-slate-800 bg-[#111620] p-3 shadow-2xl">
+              <Input
+                value={technicalOwnerSearch}
+                onChange={(e) => setTechnicalOwnerSearch(e.target.value)}
+                placeholder="Search users by name, email, or role"
+                autoFocus
+              />
+              <div className="mt-2 max-h-56 overflow-y-auto">
+                {filteredTechnicalOwners.length > 0 ? (
+                  filteredTechnicalOwners.map((user) => (
+                    <button
+                      key={user.id}
+                      type="button"
+                      onClick={() => {
+                        setForm((current) => ({ ...current, technicalOwnerUserId: user.id }));
+                        setTechnicalOwnerSearch(user.name);
+                        setIsTechnicalOwnerDropdownOpen(false);
+                      }}
+                      className={cn(
+                        "block w-full rounded-lg px-3 py-2 text-left text-sm transition-colors",
+                        form.technicalOwnerUserId === user.id
+                          ? "bg-blue-600 text-white"
+                          : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                      )}
+                    >
+                      <span className="block font-medium">{user.name}</span>
+                      <span className="block text-xs opacity-70">{user.email} · {user.role}</span>
+                    </button>
+                  ))
+                ) : (
+                  <div className="rounded-lg px-3 py-3 text-sm text-amber-400">
+                    No users match this search.
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : null}
+        </div>
+        {technicalOwners.length === 0 ? (
+          <p className="text-[10px] text-slate-500">
+            No users available yet. Admin can add technical owners from User Management.
+          </p>
+        ) : null}
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
       <section className="rounded-3xl border border-slate-800 bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.14),_transparent_28%),linear-gradient(180deg,_rgba(15,23,42,0.94),_rgba(8,11,18,0.96))] p-8 shadow-2xl">
@@ -446,6 +660,12 @@ export default function ProductsPage() {
               {refreshing ? <Loader2 size={16} className="mr-2 animate-spin" /> : <Link2 size={16} className="mr-2" />}
               Refresh
             </Button>
+            {isAdmin && (
+              <Button variant="outline" onClick={openOptionsModal}>
+                <SlidersHorizontal size={16} className="mr-2" />
+                Manage Dropdowns
+              </Button>
+            )}
             {canManage && (
               <Button onClick={openCreateModal}>
                 <Plus size={16} className="mr-2" />
@@ -562,7 +782,7 @@ export default function ProductsPage() {
                     </div>
                     <div className="rounded-2xl border border-slate-800 bg-slate-900/40 px-4 py-3">
                       <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Technical Owner</div>
-                      <div className="mt-2 text-sm font-medium text-white">{product.technicalOwnerOption.value}</div>
+                      <div className="mt-2 text-sm font-medium text-white">{product.technicalOwnerUser?.name || "Unassigned"}</div>
                     </div>
                   </div>
                 </div>
@@ -742,13 +962,7 @@ export default function ProductsPage() {
               true
             )}
 
-            {renderOptionSelect(
-              "Technical Owner",
-              form.technicalOwnerOptionId,
-              "TECHNICAL_OWNER",
-              (value) => setForm((current) => ({ ...current, technicalOwnerOptionId: value })),
-              true
-            )}
+            {renderTechnicalOwnerSelect()}
 
             <div className="space-y-2 md:col-span-2">
               <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">Documentation URL</div>
@@ -772,7 +986,7 @@ export default function ProductsPage() {
           </div>
 
           <div className="rounded-2xl border border-slate-800 bg-slate-900/25 px-4 py-3 text-xs text-slate-400">
-            Category, business domain, support team, business owner, and technical owner are now selected from managed dropdown lists. Only Admin can maintain those lists in Settings.
+            Category, business domain, support team, and business owner are managed dropdown lists. Technical owner is selected from User Management usernames.
           </div>
 
           <div className="grid gap-4 xl:grid-cols-2">
@@ -878,6 +1092,145 @@ export default function ProductsPage() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      <Modal
+        isOpen={isOptionsModalOpen}
+        onClose={() => {
+          if (busyOptionId) return;
+          setIsOptionsModalOpen(false);
+          setEditingOptionId(null);
+          setEditingOptionValue("");
+        }}
+        title="Manage Product Dropdowns"
+      >
+        <div className="space-y-6">
+          <div className="rounded-2xl border border-blue-500/20 bg-blue-500/10 px-4 py-3 text-sm leading-6 text-blue-100">
+            Admin-only catalog for Product / Application dropdown fields. Technical owners are managed from User Management.
+          </div>
+
+          {optionMessage ? (
+            <div className="rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-3 text-sm text-slate-200">
+              {optionMessage}
+            </div>
+          ) : null}
+
+          <div className="grid gap-4">
+            {optionSections.map((section) => (
+              <section key={section.type} className="rounded-2xl border border-slate-800 bg-slate-900/30 p-4">
+                <div className="mb-4">
+                  <h4 className="text-sm font-bold text-white">{section.title}</h4>
+                  <p className="mt-1 text-xs text-slate-500">{section.helper}</p>
+                </div>
+
+                <div className="mb-4 flex gap-2">
+                  <Input
+                    value={optionDrafts[section.type]}
+                    onChange={(e) =>
+                      setOptionDrafts((current) => ({ ...current, [section.type]: e.target.value }))
+                    }
+                    placeholder={`Add ${section.title}`}
+                  />
+                  <Button
+                    type="button"
+                    onClick={() => void handleAddOption(section.type)}
+                    disabled={busyOptionId === section.type}
+                  >
+                    {busyOptionId === section.type ? <Loader2 size={16} className="mr-2 animate-spin" /> : <Plus size={16} className="mr-2" />}
+                    Add
+                  </Button>
+                </div>
+
+                <div className="space-y-2">
+                  {(productOptions[section.type] || []).length === 0 ? (
+                    <p className="rounded-xl border border-dashed border-slate-700 px-4 py-3 text-sm text-slate-500">
+                      No values configured yet.
+                    </p>
+                  ) : (
+                    productOptions[section.type].map((option) => (
+                      <div key={option.id} className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-950/40 px-3 py-3">
+                        {editingOptionId === option.id ? (
+                          <Input
+                            value={editingOptionValue}
+                            onChange={(e) => setEditingOptionValue(e.target.value)}
+                            className="flex-1"
+                          />
+                        ) : (
+                          <div className="flex-1 text-sm font-medium text-white">{option.value}</div>
+                        )}
+
+                        {editingOptionId === option.id ? (
+                          <>
+                            <Button
+                              type="button"
+                              size="sm"
+                              onClick={() => void handleSaveOption(option)}
+                              disabled={busyOptionId === option.id}
+                            >
+                              Save
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                setEditingOptionId(null);
+                                setEditingOptionValue("");
+                              }}
+                              disabled={busyOptionId === option.id}
+                            >
+                              Cancel
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setEditingOptionId(option.id);
+                                setEditingOptionValue(option.value);
+                              }}
+                            >
+                              <Pencil size={14} className="mr-2" />
+                              Edit
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="danger"
+                              onClick={() => void handleDeleteOption(option)}
+                              disabled={busyOptionId === option.id}
+                            >
+                              {busyOptionId === option.id ? <Loader2 size={14} className="mr-2 animate-spin" /> : <Trash2 size={14} className="mr-2" />}
+                              Delete
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </section>
+            ))}
+          </div>
+
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setIsOptionsModalOpen(false);
+                setEditingOptionId(null);
+                setEditingOptionValue("");
+              }}
+              disabled={!!busyOptionId}
+            >
+              Close
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

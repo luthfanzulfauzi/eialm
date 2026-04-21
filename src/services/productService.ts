@@ -20,8 +20,8 @@ const productInclude = {
   businessOwnerOption: {
     select: { id: true, type: true, value: true },
   },
-  technicalOwnerOption: {
-    select: { id: true, type: true, value: true },
+  technicalOwnerUser: {
+    select: { id: true, name: true, email: true, role: true },
   },
   assets: {
     select: {
@@ -52,7 +52,6 @@ const productInclude = {
 const requiredProductOptionTypes = {
   categoryOptionId: ProductOptionType.CATEGORY,
   businessOwnerOptionId: ProductOptionType.BUSINESS_OWNER,
-  technicalOwnerOptionId: ProductOptionType.TECHNICAL_OWNER,
 } as const;
 
 const optionalProductOptionTypes = {
@@ -76,7 +75,7 @@ const groupProductOptions = async () => {
       BUSINESS_DOMAIN: options.filter((option) => option.type === ProductOptionType.BUSINESS_DOMAIN),
       SUPPORT_TEAM: options.filter((option) => option.type === ProductOptionType.SUPPORT_TEAM),
       BUSINESS_OWNER: options.filter((option) => option.type === ProductOptionType.BUSINESS_OWNER),
-      TECHNICAL_OWNER: options.filter((option) => option.type === ProductOptionType.TECHNICAL_OWNER),
+      TECHNICAL_OWNER: [],
     },
   };
 };
@@ -91,7 +90,7 @@ const ensureRelationsExist = async (
       | "businessDomainOptionId"
       | "supportTeamOptionId"
       | "businessOwnerOptionId"
-      | "technicalOwnerOptionId"
+      | "technicalOwnerUserId"
     >
   >
 ) => {
@@ -148,11 +147,22 @@ const ensureRelationsExist = async (
       throw new Error(`Selected ${optionType.toLowerCase().replace(/_/g, " ")} is invalid.`);
     }
   }
+
+  if ("technicalOwnerUserId" in data) {
+    const userId = data.technicalOwnerUserId;
+    const userCount = await prisma.user.count({
+      where: { id: userId },
+    });
+
+    if (!userId || userCount !== 1) {
+      throw new Error("Selected technical owner is invalid.");
+    }
+  }
 };
 
 export const ProductService = {
   async getProductManagerData() {
-    const [products, assets, licenses, options] = await Promise.all([
+    const [products, assets, licenses, options, technicalOwners] = await Promise.all([
       prisma.product.findMany({
         include: productInclude,
         orderBy: [
@@ -181,6 +191,18 @@ export const ProductService = {
         orderBy: { name: "asc" },
       }),
       groupProductOptions(),
+      prisma.user.findMany({
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+        },
+        orderBy: [
+          { name: "asc" },
+          { email: "asc" },
+        ],
+      }),
     ]);
 
     const summary = products.reduce(
@@ -201,7 +223,7 @@ export const ProductService = {
       }
     );
 
-    return { products, assets, licenses, options, summary };
+    return { products, assets, licenses, options, technicalOwners, summary };
   },
 
   async createProduct(data: ProductFormValues) {
@@ -221,7 +243,7 @@ export const ProductService = {
         businessDomainOptionId: data.businessDomainOptionId || null,
         supportTeamOptionId: data.supportTeamOptionId || null,
         businessOwnerOptionId: data.businessOwnerOptionId,
-        technicalOwnerOptionId: data.technicalOwnerOptionId,
+        technicalOwnerUserId: data.technicalOwnerUserId,
         assets: {
           connect: data.assetIds.map((id) => ({ id })),
         },
@@ -241,7 +263,7 @@ export const ProductService = {
       data.businessDomainOptionId !== undefined ||
       data.supportTeamOptionId !== undefined ||
       data.businessOwnerOptionId !== undefined ||
-      data.technicalOwnerOptionId !== undefined
+      data.technicalOwnerUserId !== undefined
     ) {
       const currentProduct = await prisma.product.findUnique({
         where: { id },
@@ -250,7 +272,7 @@ export const ProductService = {
           businessDomainOptionId: true,
           supportTeamOptionId: true,
           businessOwnerOptionId: true,
-          technicalOwnerOptionId: true,
+          technicalOwnerUserId: true,
           assets: { select: { id: true } },
           licenses: { select: { id: true } },
         },
@@ -273,7 +295,11 @@ export const ProductService = {
             ? data.supportTeamOptionId
             : currentProduct.supportTeamOptionId || undefined,
         businessOwnerOptionId: data.businessOwnerOptionId ?? currentProduct.businessOwnerOptionId,
-        technicalOwnerOptionId: data.technicalOwnerOptionId ?? currentProduct.technicalOwnerOptionId,
+        ...(data.technicalOwnerUserId !== undefined
+          ? { technicalOwnerUserId: data.technicalOwnerUserId }
+          : currentProduct.technicalOwnerUserId
+            ? { technicalOwnerUserId: currentProduct.technicalOwnerUserId }
+            : {}),
       });
     }
 
@@ -291,7 +317,7 @@ export const ProductService = {
     if (data.businessDomainOptionId !== undefined) payload.businessDomainOptionId = data.businessDomainOptionId || null;
     if (data.supportTeamOptionId !== undefined) payload.supportTeamOptionId = data.supportTeamOptionId || null;
     if (data.businessOwnerOptionId !== undefined) payload.businessOwnerOptionId = data.businessOwnerOptionId;
-    if (data.technicalOwnerOptionId !== undefined) payload.technicalOwnerOptionId = data.technicalOwnerOptionId;
+    if (data.technicalOwnerUserId !== undefined) payload.technicalOwnerUserId = data.technicalOwnerUserId;
     if (data.assetIds !== undefined) {
       payload.assets = {
         set: data.assetIds.map((relationId) => ({ id: relationId })),

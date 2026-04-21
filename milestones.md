@@ -1,7 +1,7 @@
 # EIALM Project Milestones
 ## Enterprise Infrastructure & Asset Lifecycle Manager
 
-This roadmap reflects the current repository state as of April 4, 2026. It is organized as milestone-plus-deliverables so it can serve both as a progress report and as an execution plan.
+This roadmap reflects the current repository state as of April 21, 2026. It is organized as milestone-plus-deliverables so it can serve both as a progress report and as an execution plan.
 
 Percentages represent implementation maturity in the codebase today, not the final target state.
 
@@ -186,7 +186,7 @@ Manage public and private address inventory, assignment, reservation, and operat
 
 ---
 
-## Milestone 5: Products & Application Portfolio (15% Complete)
+## Milestone 5: Products & Application Portfolio (70% Complete)
 
 **Goal**
 
@@ -194,26 +194,35 @@ Add a dedicated portfolio layer for managing business products and applications,
 
 **Current State**
 
-- [x] A first-pass dummy dashboard page now exists for the new Products / Application main feature.
 - [x] The module is visible from the main navigation as a first-class feature area.
-- [x] The placeholder page documents the intended relationship model with assets, licenses, IPs, locations, owners, and compliance controls.
-- [ ] No database schema or API routes exist for product/application data yet.
-- [ ] No CRUD flows or persisted relationships have been implemented yet.
+- [x] Product/application schema exists with environment, lifecycle, criticality, documentation, notes, and indexed lookup fields.
+- [x] Product CRUD APIs and dashboard UI are implemented.
+- [x] Products can be related to assets and licenses.
+- [x] Product option catalogs exist for category, business domain, support team, and business owner values.
+- [x] Product dropdown catalog management exists in Settings and via `/api/product-options`.
+- [x] Technical ownership has moved from a product-option catalog to a user-backed relation in the current working tree.
+- [ ] The technical-owner migration needs deployed validation against existing product data.
+- [ ] Optional relation mapping to IPs, locations, compliance metadata, and operational dependency views is still missing.
+- [ ] Portfolio UX still needs pagination, richer filtering, and consistent feedback/toast behavior.
 
 **Deliverables**
 
 - [x] Main navigation entry for Products / Application
-- [x] Dummy planning page for the new module
-- [ ] Initial `Product` or `Application` schema design
-- [ ] CRUD UI and API for product/application records
-- [ ] Relation mapping to assets and licenses
-- [ ] Ownership model for business and technical contacts
+- [x] Initial `Product` schema design
+- [x] CRUD UI and API for product/application records
+- [x] Relation mapping to assets and licenses
+- [x] Ownership model for business owner catalog values and user-backed technical owners
+- [x] Admin-managed option catalogs for portfolio dropdown values
+- [ ] Migration validation and seeded/default catalog review
 - [ ] Optional relation mapping to IPs, locations, and compliance metadata
+- [ ] Portfolio pagination, advanced filtering, and polished notification UX
 
 **Exit Criteria**
 
-- The platform can store and manage product/application portfolio records as first-class entities.
-- Products/applications can be linked to relevant infrastructure, license, and ownership data without duplicating existing records.
+- [x] The platform can store and manage product/application portfolio records as first-class entities.
+- [x] Products/applications can be linked to relevant infrastructure, license, and ownership data without duplicating existing records.
+- Product ownership migration and CRUD workflows are validated in Docker/deployed mode.
+- Portfolio views remain usable as data volume grows.
 
 ---
 
@@ -330,17 +339,15 @@ Move from containerized development readiness to production-safe deployment and 
 
 Focus:
 
-- Establish the first persisted implementation slice for Products / Application
-- Finish missing license backend and UI flows
-- Finish private IP create/manage flows
+- Validate and polish the persisted Products / Application implementation
+- Finish missing dashboard risk sections
 - Tighten incomplete asset/facility workflows
 
 Target deliverables:
 
-- initial product/application schema and CRUD baseline
-- `/api/licenses` route set
-- license CRUD UI
-- private IP registration flow
+- Products technical-owner migration validation
+- product portfolio filters, pagination, and feedback polish
+- expired/expiring dashboard widgets
 - better placement/movement validation for racks and locations
 
 ### **Work Cycle 2: Complete Core Product Experience**
@@ -380,15 +387,27 @@ Target deliverables:
 
 ## Immediate Next Deliverables
 
-1. Implement license API routes and make the License Manager fully operational.
-2. Move Products / Application from dummy page to persisted schema and CRUD baseline.
-3. Complete private IP registration and management beyond listing/search.
-4. Add missing dashboard sections for expired and expiring operational data.
-5. Replace the placeholder global search with a real cross-module search flow.
+1. Validate the Products / Application technical-owner migration and CRUD flow in Docker.
+2. Add missing dashboard sections for expired and expiring operational data.
+3. Replace the placeholder global search with a real cross-module search flow.
+4. Improve advanced filtering, pagination, and unified feedback/toast behavior.
+5. Tighten rack/location movement validation and large-table UX.
 6. Harden Docker-to-production deployment assumptions.
 
 ---
 
-**Last Updated:** April 4, 2026  
+## Repository Review Notes
+
+- Runtime folders `pgdata/`, `.next/`, and `node_modules/` are present locally but ignored by Git.
+- Three backup files are still tracked and appear residual: `src/app/(dashboard)/page.tsx.backup`, `src/lib/validations/auth.ts.backup`, and `src/types/index.d.ts.backup`.
+- `src/hooks/useDebounce.ts` has no current imports.
+- `src/components/ui/index.ts` has no current imports because call sites import UI components directly.
+- The `TECHNICAL_OWNER` product option enum/value path is now residual after the move to user-backed technical owners; old rows may need a cleanup migration after validation.
+- Product technical-owner work is in an uncommitted state across `prisma/schema.prisma`, `src/app/(dashboard)/products/page.tsx`, `src/app/(dashboard)/settings/page.tsx`, `src/lib/validations/product.ts`, `src/services/productService.ts`, and `prisma/migrations/20260421103000_product_technical_owner_users/`.
+- Static verification was limited because `node` and `npm` were not available in the current shell PATH.
+
+---
+
+**Last Updated:** April 21, 2026  
 **Current Status:** Active Development  
-**Program Summary:** Asset inventory and facility management are already on solid footing. The next major gains come from finishing license workflows, closing UX/search gaps, and making deployment truly production-ready.
+**Program Summary:** Asset, facility, network, license, and product portfolio foundations are now mostly operational. The next major gains come from validating the latest product-owner migration, closing dashboard/search/UX gaps, and making deployment truly production-ready.

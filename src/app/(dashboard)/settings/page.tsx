@@ -9,8 +9,7 @@ type ProductOptionType =
   | "CATEGORY"
   | "BUSINESS_DOMAIN"
   | "SUPPORT_TEAM"
-  | "BUSINESS_OWNER"
-  | "TECHNICAL_OWNER";
+  | "BUSINESS_OWNER";
 
 type ProductOption = {
   id: string;
@@ -26,7 +25,6 @@ const emptyProductOptions: ProductOptionsByType = {
   BUSINESS_DOMAIN: [],
   SUPPORT_TEAM: [],
   BUSINESS_OWNER: [],
-  TECHNICAL_OWNER: [],
 };
 
 const optionSections: { type: ProductOptionType; title: string; helper: string }[] = [
@@ -34,7 +32,6 @@ const optionSections: { type: ProductOptionType; title: string; helper: string }
   { type: "BUSINESS_DOMAIN", title: "Business Domain", helper: "Business areas such as Finance or Operations." },
   { type: "SUPPORT_TEAM", title: "Support Team", helper: "Operational teams responsible for support coverage." },
   { type: "BUSINESS_OWNER", title: "Business Owner", helper: "Approved list of business-side ownership contacts." },
-  { type: "TECHNICAL_OWNER", title: "Technical Owner", helper: "Approved list of technical owners or teams." },
 ];
 
 export default function SettingsPage() {
@@ -58,7 +55,6 @@ export default function SettingsPage() {
     BUSINESS_DOMAIN: "",
     SUPPORT_TEAM: "",
     BUSINESS_OWNER: "",
-    TECHNICAL_OWNER: "",
   });
   const [editingOptionId, setEditingOptionId] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState("");
@@ -313,7 +309,7 @@ export default function SettingsPage() {
         <div className="flex flex-col gap-2">
           <h3 className="text-lg font-bold text-white">Product Dropdown Catalogs</h3>
           <p className="text-sm text-slate-500">
-            Manage the dropdown values used by the Products / Application form for category, business domain, support team, business owner, and technical owner.
+            Manage the dropdown values used by the Products / Application form for category, business domain, support team, and business owner. Technical owners come from User Management usernames.
           </p>
           <p className="text-[11px] text-slate-500 uppercase tracking-wider font-bold">
             {isAdmin ? "Admin access: create, edit, and delete enabled" : "Read-only: only Admin can manage these lists"}
