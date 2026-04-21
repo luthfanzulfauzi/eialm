@@ -47,7 +47,7 @@ export async function POST(
 
     const rack = await prisma.rack.findUnique({
       where: { id: params.id },
-      select: { id: true, locationId: true, totalUnits: true, name: true },
+      select: { id: true, locationId: true, totalUnits: true, name: true, location: { select: { name: true } } },
     });
 
     if (!rack) {
@@ -67,6 +67,7 @@ export async function POST(
           rackUnitSize: true,
           rackFace: true,
           rack: { select: { name: true } },
+          location: { select: { name: true, type: true } },
         },
       });
 
@@ -131,7 +132,14 @@ export async function POST(
           rackUnitStart: { not: null },
           rackUnitSize: { not: null },
         },
-        select: { id: true, rackUnitStart: true, rackUnitSize: true, rackFace: true },
+        select: {
+          id: true,
+          name: true,
+          serialNumber: true,
+          rackUnitStart: true,
+          rackUnitSize: true,
+          rackFace: true,
+        },
       });
 
       for (const other of otherAssets) {
@@ -139,7 +147,9 @@ export async function POST(
         const oEnd = oStart + (other.rackUnitSize as number) - 1;
         if (facesIntersect(rackFace, (other as any).rackFace ?? null) && rangesOverlap(rackUnitStart, endU, oStart, oEnd)) {
           return NextResponse.json(
-            { error: `Placement overlaps with another asset occupying ${oStart}-${oEnd}` },
+            {
+              error: `Placement overlaps with ${other.name} (${other.serialNumber}) at U${oStart}-U${oEnd} on ${other.rackFace ?? "FRONT"}`,
+            },
             { status: 400 }
           );
         }
@@ -156,13 +166,13 @@ export async function POST(
         },
       });
 
-      const fromRackName = asset.rack?.name || "N/A";
+      const fromPlacement = asset.rack?.name || asset.location?.name || "Unassigned";
       await tx.auditLog.create({
         data: {
           action: "MOVE",
           userId: session.user.id,
           assetId: assetId,
-          details: `Placed in rack ${rack.name} (${rackFace}) (U${rackUnitStart}-U${endU}), moved from ${fromRackName}`,
+          details: `Placed in ${rack.location.name} / ${rack.name} (${rackFace}) (U${rackUnitStart}-U${endU}), moved from ${fromPlacement}`,
         },
       });
 

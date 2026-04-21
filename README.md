@@ -13,8 +13,8 @@ Implemented well today:
 - authentication with role-based access control
 - user management
 - hardware asset CRUD
-- datacenter, warehouse, and rack management
-- rack layout and placement flows
+- datacenter, warehouse, and rack management with storage inventory views
+- rack layout, cross-facility placement flows, utilization summaries, and conflict guardrails
 - public IP range management
 - private IP range and inventory management
 - persisted products / application portfolio CRUD
@@ -56,7 +56,7 @@ The working roadmap is tracked in [milestones.md](./milestones.md).
 - Asset Inventory
   hardware CRUD, lifecycle status, import/export, audit trail
 - Facility Management
-  datacenters, warehouses, racks, rack layout designer
+  datacenters, warehouses, racks, storage inventory, rack utilization, and rack layout designer
 - Network Management
   public/private IP ranges, inventory, status transitions, and assignment metadata
 - Products / Application Portfolio

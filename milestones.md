@@ -115,7 +115,7 @@ Provide a dependable hardware inventory system with lifecycle tracking, search, 
 
 ---
 
-## Milestone 3B: Facility & Rack Management (75% Complete)
+## Milestone 3B: Facility & Rack Management (100% Complete)
 
 **Goal**
 
@@ -127,8 +127,9 @@ Support datacenter, warehouse, rack, and rack-layout workflows for real infrastr
 - [x] Rack listing and rack creation exist under Datacenters.
 - [x] Rack utilization and placement logic exist at the API layer.
 - [x] Rack layout designer exists with placement and removal flows.
-- [ ] Cross-location movement workflows still need refinement.
-- [ ] Operator guardrails and UX around conflicts need improvement.
+- [x] Rack layout placement can move unracked assets from warehouses or other facilities into the selected datacenter rack.
+- [x] Operator guardrails now surface overlap, out-of-bounds, duplicate-rack, invalid-location, and rack-height errors in the UI.
+- [x] Warehouse storage inventory and rack utilization summaries are visible from facility pages.
 
 **Deliverables**
 
@@ -137,14 +138,14 @@ Support datacenter, warehouse, rack, and rack-layout workflows for real infrastr
 - [x] Rack CRUD baseline
 - [x] Rack utilization calculations
 - [x] Rack layout designer
-- [ ] Cleaner warehouse-to-rack movement workflow
-- [ ] Better error handling for overlap, out-of-bounds, and invalid placement cases
-- [ ] More complete operational views for assets stored in warehouses vs installed in racks
+- [x] Cleaner warehouse-to-rack movement workflow
+- [x] Better error handling for overlap, out-of-bounds, and invalid placement cases
+- [x] More complete operational views for assets stored in warehouses vs installed in racks
 
 **Exit Criteria**
 
-- Operators can place, move, and review assets across facilities without ambiguous states.
-- Rack conflicts and invalid placements are clearly prevented or explained.
+- [x] Operators can place, move, and review assets across facilities without ambiguous states.
+- [x] Rack conflicts and invalid placements are clearly prevented or explained.
 
 ---
 

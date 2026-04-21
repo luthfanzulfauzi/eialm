@@ -11,15 +11,46 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json();
+    const name = typeof body.name === "string" ? body.name.trim() : "";
+    const totalUnits = typeof body.totalUnits === "number" ? body.totalUnits : 42;
+
+    if (!name) {
+      return NextResponse.json({ error: "Rack name is required" }, { status: 400 });
+    }
+
+    if (typeof body.locationId !== "string" || body.locationId.trim().length === 0) {
+      return NextResponse.json({ error: "Datacenter location is required" }, { status: 400 });
+    }
+
+    if (!Number.isFinite(totalUnits) || totalUnits < 1) {
+      return NextResponse.json({ error: "Rack height must be a positive number" }, { status: 400 });
+    }
+
+    const location = await prisma.location.findUnique({
+      where: { id: body.locationId },
+      select: { type: true },
+    });
+
+    if (!location) {
+      return NextResponse.json({ error: "Location not found" }, { status: 404 });
+    }
+
+    if (location.type !== "DATACENTER") {
+      return NextResponse.json({ error: "Racks can only be created inside datacenters" }, { status: 400 });
+    }
+
     const rack = await prisma.rack.create({
       data: {
-        name: body.name,
-        locationId: body.locationId, // This ID comes from the Datacenter URL
-        totalUnits: typeof body.totalUnits === "number" ? body.totalUnits : undefined,
+        name,
+        locationId: body.locationId,
+        totalUnits,
       }
     });
     return NextResponse.json(rack);
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to create rack" }, { status: 400 });
+  } catch (error: any) {
+    if (error?.code === "P2002") {
+      return NextResponse.json({ error: "A rack with this name already exists in this datacenter" }, { status: 400 });
+    }
+    return NextResponse.json({ error: error?.message || "Failed to create rack" }, { status: 400 });
   }
 }

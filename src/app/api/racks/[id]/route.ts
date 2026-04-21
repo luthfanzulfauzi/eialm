@@ -115,9 +115,15 @@ export async function GET(
     }
 
     const assetsAtLocation = await prisma.asset.findMany({
-      where: { locationId: rack.locationId },
+      where: {
+        OR: [
+          { locationId: rack.locationId },
+          { rackId: rack.id },
+          { rackId: null },
+        ],
+      },
       include: { rack: true, ips: true, location: true },
-      orderBy: [{ rackId: "asc" }, { name: "asc" }],
+      orderBy: [{ rackId: "asc" }, { location: { name: "asc" } }, { name: "asc" }],
     });
 
     const utilization = computeUtilization({

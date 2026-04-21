@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Warehouse, Plus, MapPin, Package, Edit3, Trash2, Loader2 } from "lucide-react";
+import { Warehouse, Plus, MapPin, Package, Edit3, Trash2, Loader2, Server } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { useRole } from "@/hooks/useRole";
 
@@ -15,6 +15,9 @@ export default function WarehousesPage() {
   const [editTarget, setEditTarget] = useState<any | null>(null);
   const [formData, setFormData] = useState({ name: "", address: "" });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [expandedWarehouseId, setExpandedWarehouseId] = useState<string | null>(null);
+  const [warehouseAssets, setWarehouseAssets] = useState<Record<string, any[]>>({});
+  const [loadingAssetsId, setLoadingAssetsId] = useState<string | null>(null);
 
   const fetchWarehouses = async () => {
     setLoading(true);
@@ -81,6 +84,25 @@ export default function WarehousesPage() {
       }
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const toggleInventory = async (warehouseId: string) => {
+    if (expandedWarehouseId === warehouseId) {
+      setExpandedWarehouseId(null);
+      return;
+    }
+
+    setExpandedWarehouseId(warehouseId);
+    if (warehouseAssets[warehouseId]) return;
+
+    setLoadingAssetsId(warehouseId);
+    try {
+      const res = await fetch(`/api/locations/${warehouseId}?includeAssets=1`);
+      const data = await res.json();
+      setWarehouseAssets((prev) => ({ ...prev, [warehouseId]: data.assets || [] }));
+    } finally {
+      setLoadingAssetsId(null);
     }
   };
 
@@ -152,9 +174,47 @@ export default function WarehousesPage() {
                 <span className="line-clamp-2">{wh.address || "Internal Storage"}</span>
               </div>
 
-              <button className="w-full flex items-center justify-center gap-2 bg-slate-800/50 hover:bg-emerald-600 text-white py-2.5 rounded-xl text-xs font-bold transition-all border border-slate-700 hover:border-emerald-500">
-                <Package size={14} /> View Storage Inventory
+              <button
+                type="button"
+                onClick={() => toggleInventory(wh.id)}
+                className="w-full flex items-center justify-center gap-2 bg-slate-800/50 hover:bg-emerald-600 text-white py-2.5 rounded-xl text-xs font-bold transition-all border border-slate-700 hover:border-emerald-500"
+              >
+                <Package size={14} /> {expandedWarehouseId === wh.id ? "Hide Storage Inventory" : "View Storage Inventory"}
               </button>
+
+              {expandedWarehouseId === wh.id ? (
+                <div className="mt-4 rounded-xl border border-slate-800 bg-[#0f1218] p-3">
+                  {loadingAssetsId === wh.id ? (
+                    <div className="py-5 flex items-center justify-center text-slate-500">
+                      <Loader2 className="animate-spin" size={16} />
+                    </div>
+                  ) : warehouseAssets[wh.id]?.length ? (
+                    <div className="space-y-2 max-h-72 overflow-auto pr-1">
+                      {warehouseAssets[wh.id].map((asset) => (
+                        <div key={asset.id} className="rounded-lg border border-slate-800 bg-slate-950/30 p-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 text-sm font-bold text-white">
+                                <Server size={14} className="text-emerald-400 shrink-0" />
+                                <span className="truncate">{asset.name}</span>
+                              </div>
+                              <div className="text-xs text-slate-500">{asset.serialNumber}</div>
+                            </div>
+                            <span className="rounded-md bg-slate-800 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                              {asset.status}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-slate-400">
+                            {asset.category} {asset.ips?.length ? `• ${asset.ips.map((ip: any) => ip.address).join(", ")}` : ""}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="py-5 text-center text-sm text-slate-500">No assets stored in this warehouse.</div>
+                  )}
+                </div>
+              ) : null}
             </div>
           ))}
         </div>

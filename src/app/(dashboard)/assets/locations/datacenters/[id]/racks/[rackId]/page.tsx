@@ -22,6 +22,7 @@ type RackAsset = {
   rackUnitSize: number | null;
   rackFace: RackFace | null;
   rack?: { id: string; name: string } | null;
+  location?: { id: string; name: string; type: "DATACENTER" | "WAREHOUSE" } | null;
   ips?: Array<{ id: string; address: string; isPublic: boolean }>;
 };
 
@@ -77,6 +78,7 @@ export default function RackLayoutDesignerPage() {
 
   const [viewMode, setViewMode] = useState<"FRONT" | "BACK" | "BOTH">("FRONT");
   const [assetSearch, setAssetSearch] = useState("");
+  const [assetScope, setAssetScope] = useState<"READY" | "THIS_RACK" | "OTHER_RACKS" | "ALL">("READY");
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
   const [placementStart, setPlacementStart] = useState<number>(1);
   const [placementSize, setPlacementSize] = useState<number>(1);
@@ -89,6 +91,7 @@ export default function RackLayoutDesignerPage() {
   const [showQuickPlace, setShowQuickPlace] = useState(false);
   const [quickPlaceSearch, setQuickPlaceSearch] = useState("");
   const [dragHover, setDragHover] = useState<{ face: "FRONT" | "BACK"; u: number } | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const selectedAsset = useMemo(() => {
     if (!data || !selectedAssetId) return null;
@@ -134,31 +137,47 @@ export default function RackLayoutDesignerPage() {
     if (!data) return [];
     const q = assetSearch.trim().toLowerCase();
     return data.assetsAtLocation.filter((a) => {
+      if (assetScope === "READY" && a.rackId) return false;
+      if (assetScope === "THIS_RACK" && a.rackId !== rackId) return false;
+      if (assetScope === "OTHER_RACKS" && (!a.rackId || a.rackId === rackId)) return false;
       if (!q) return true;
       return (
         a.name.toLowerCase().includes(q) ||
         a.serialNumber.toLowerCase().includes(q) ||
-        a.category.toLowerCase().includes(q)
+        a.category.toLowerCase().includes(q) ||
+        (a.location?.name || "").toLowerCase().includes(q) ||
+        (a.rack?.name || "").toLowerCase().includes(q)
       );
     });
-  }, [data, assetSearch]);
+  }, [data, assetSearch, assetScope, rackId]);
 
   const quickFilteredAssets = useMemo(() => {
     if (!data) return [];
     const q = quickPlaceSearch.trim().toLowerCase();
     return data.assetsAtLocation.filter((a) => {
+      if (a.rackId && a.rackId !== rackId) return false;
       if (!q) return true;
       return (
         a.name.toLowerCase().includes(q) ||
         a.serialNumber.toLowerCase().includes(q) ||
-        a.category.toLowerCase().includes(q)
+        a.category.toLowerCase().includes(q) ||
+        (a.location?.name || "").toLowerCase().includes(q)
       );
     });
-  }, [data, quickPlaceSearch]);
+  }, [data, quickPlaceSearch, rackId]);
+
+  const placementLabel = (asset: RackAsset) => {
+    if (asset.rackId === rackId) return "Installed in this rack";
+    if (asset.rack?.name) return `Installed in ${asset.rack.name}`;
+    if (asset.location?.type === "WAREHOUSE") return `Stored in ${asset.location.name}`;
+    if (asset.location?.type === "DATACENTER") return `Staged at ${asset.location.name}`;
+    return "Unassigned";
+  };
 
   const assignAsset = async (params: { assetId: string; startU: number; sizeU: number; face: RackFace }) => {
     if (!canManage) return;
-    await fetch(`/api/racks/${rackId}/assign`, {
+    setActionError(null);
+    const res = await fetch(`/api/racks/${rackId}/assign`, {
       method: "POST",
       body: JSON.stringify({
         assetId: params.assetId,
@@ -167,30 +186,44 @@ export default function RackLayoutDesignerPage() {
         rackFace: params.face,
       }),
     });
+    if (!res.ok) {
+      const payload = await res.json().catch(() => ({} as any));
+      const message = payload?.error || "Failed to assign asset to rack";
+      setActionError(message);
+      throw new Error(message);
+    }
   };
 
   const handleAssign = async () => {
     if (!selectedAssetId) return;
     if (!canManage) return;
-    await assignAsset({
-      assetId: selectedAssetId,
-      startU: placementStart,
-      sizeU: placementSize,
-      face: placementFace,
-    });
-    await fetchRack();
+    try {
+      await assignAsset({
+        assetId: selectedAssetId,
+        startU: placementStart,
+        sizeU: placementSize,
+        face: placementFace,
+      });
+      await fetchRack();
+    } catch {}
   };
 
   const handleRemove = async () => {
     if (!selectedAssetId) return;
     if (!canManage) return;
-    await fetch(`/api/racks/${rackId}/assign`, {
+    setActionError(null);
+    const res = await fetch(`/api/racks/${rackId}/assign`, {
       method: "POST",
       body: JSON.stringify({
         assetId: selectedAssetId,
         removeFromRack: true,
       }),
     });
+    if (!res.ok) {
+      const payload = await res.json().catch(() => ({} as any));
+      setActionError(payload?.error || "Failed to remove asset from rack");
+      return;
+    }
     setShowConfirmRemove(false);
     await fetchRack();
   };
@@ -198,11 +231,17 @@ export default function RackLayoutDesignerPage() {
   const handleSaveRackUnits = async () => {
     if (!canManage) return;
     setSavingRackUnits(true);
-    await fetch(`/api/racks/${rackId}`, {
+    setActionError(null);
+    const res = await fetch(`/api/racks/${rackId}`, {
       method: "PATCH",
       body: JSON.stringify({ totalUnits: rackUnitsDraft }),
     });
-    await fetchRack();
+    if (!res.ok) {
+      const payload = await res.json().catch(() => ({} as any));
+      setActionError(payload?.error || "Failed to update rack height");
+    } else {
+      await fetchRack();
+    }
     setSavingRackUnits(false);
   };
 
@@ -257,14 +296,18 @@ export default function RackLayoutDesignerPage() {
     setPlacementSize(sizeU);
     setPlacementFace(face);
 
-    await assignAsset({
-      assetId,
-      startU,
-      sizeU,
-      face,
-    });
-    setDragHover(null);
-    await fetchRack();
+    try {
+      await assignAsset({
+        assetId,
+        startU,
+        sizeU,
+        face,
+      });
+      setDragHover(null);
+      await fetchRack();
+    } catch {
+      setDragHover(null);
+    }
   };
 
   const handleDragLeave = () => {
@@ -330,10 +373,16 @@ export default function RackLayoutDesignerPage() {
         </div>
 
         {utilization.issues.length > 0 && (
-          <div className="mt-4 text-sm text-amber-300">
+          <div className="mt-4 rounded-xl border border-amber-900/50 bg-amber-950/20 p-3 text-sm text-amber-300">
             {utilization.issues.map((i, idx) => (
               <div key={idx}>{i.message}</div>
             ))}
+          </div>
+        )}
+
+        {actionError && (
+          <div className="mt-4 rounded-xl border border-red-900/50 bg-red-950/20 p-3 text-sm text-red-300">
+            {actionError}
           </div>
         )}
       </div>
@@ -344,6 +393,25 @@ export default function RackLayoutDesignerPage() {
             <div className="flex items-center justify-between">
               <div className="text-white font-bold">Asset Inventory</div>
               <div className="text-slate-400 text-sm">{filteredAssets.length} items</div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                ["READY", "Ready"],
+                ["THIS_RACK", "This Rack"],
+                ["OTHER_RACKS", "Other Racks"],
+                ["ALL", "All"],
+              ].map(([scope, label]) => (
+                <Button
+                  key={scope}
+                  type="button"
+                  size="sm"
+                  variant={assetScope === scope ? "primary" : "outline"}
+                  onClick={() => setAssetScope(scope as typeof assetScope)}
+                >
+                  {label}
+                </Button>
+              ))}
             </div>
 
             <Input
@@ -388,8 +456,13 @@ export default function RackLayoutDesignerPage() {
                             ? `In this rack • ${placement} • ${faceLabel(face as RackFace)}`
                             : a.rack?.name
                               ? `In ${a.rack.name}`
-                              : "Not racked"}
+                              : placementLabel(a)}
                         </div>
+                        {!a.rackId && a.location?.id !== data.rack.locationId ? (
+                          <div className="mt-2 text-[11px] text-amber-300">
+                            Will move from {a.location?.name || "unassigned"} into this datacenter when placed.
+                          </div>
+                        ) : null}
                       </div>
                       {isSelected && (
                         <div className="text-blue-400 text-xs font-bold">Selected</div>
@@ -775,7 +848,7 @@ export default function RackLayoutDesignerPage() {
                 >
                   <div className="text-white font-bold text-sm">{a.name}</div>
                   <div className="text-slate-500 text-xs">{a.serialNumber}</div>
-                  <div className="text-slate-400 text-xs mt-1">{a.category}</div>
+                  <div className="text-slate-400 text-xs mt-1">{a.category} • {placementLabel(a)}</div>
                 </button>
               );
             })}
@@ -788,14 +861,16 @@ export default function RackLayoutDesignerPage() {
             <Button
               onClick={async () => {
                 if (!selectedAssetId) return;
-                await assignAsset({
-                  assetId: selectedAssetId,
-                  startU: placementStart,
-                  sizeU: placementSize,
-                  face: placementFace,
-                });
-                setShowQuickPlace(false);
-                await fetchRack();
+                try {
+                  await assignAsset({
+                    assetId: selectedAssetId,
+                    startU: placementStart,
+                    sizeU: placementSize,
+                    face: placementFace,
+                  });
+                  setShowQuickPlace(false);
+                  await fetchRack();
+                } catch {}
               }}
               disabled={!selectedAssetId}
               className="flex-1"

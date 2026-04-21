@@ -9,7 +9,7 @@ Last reviewed against the repository on April 22, 2026.
 - Next.js 14 App Router, TypeScript, Tailwind CSS, Prisma, PostgreSQL, NextAuth.js, Zustand, React Hook Form, Zod, Docker, and Docker Compose are in use.
 - Authentication, RBAC, user management, password change, login timeout, and protected API/page access are implemented.
 - Dashboard summary cards and recent activity are implemented; expired/expiring operational sections and global search are still missing.
-- Asset hardware CRUD, audit trail, CSV import/export, advanced asset filtering, pagination, placement validation, datacenter/warehouse CRUD, rack CRUD, and rack layout placement flows are implemented.
+- Asset hardware CRUD, audit trail, CSV import/export, advanced asset filtering, pagination, placement validation, datacenter/warehouse CRUD, rack CRUD, warehouse storage views, rack utilization summaries, and cross-facility rack layout placement flows are implemented.
 - Public and private IP inventory management are implemented, including ranges, generated IP inventory, status transitions, and assignment target metadata.
 - License CRUD, assignment, and expiry views are implemented.
 - Products / Application is now a persisted module with product CRUD, configurable option catalogs, asset/license relationships, business owners, and user-backed technical owners. The latest technical-owner migration still needs deployed validation.

@@ -17,6 +17,24 @@ export default function DatacenterRacksPage() {
   const [rackName, setRackName] = useState("");
   const [rackUnits, setRackUnits] = useState(42);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const rackUtilization = (rack: any) => {
+    const used = new Set<number>();
+    const totalUnits = rack.totalUnits ?? 42;
+    for (const asset of rack.assets || []) {
+      if (!asset.rackUnitStart || !asset.rackUnitSize) continue;
+      const end = asset.rackUnitStart + asset.rackUnitSize - 1;
+      for (let u = asset.rackUnitStart; u <= end && u <= totalUnits; u++) {
+        if (u >= 1) used.add(u);
+      }
+    }
+    return {
+      used: used.size,
+      total: totalUnits,
+      percent: totalUnits > 0 ? Math.round((used.size / totalUnits) * 100) : 0,
+    };
+  };
 
   const fetchRacks = async () => {
     const res = await fetch(`/api/locations/${id}`);
@@ -30,15 +48,25 @@ export default function DatacenterRacksPage() {
     e.preventDefault();
     if (!canManage) return;
     setIsSubmitting(true);
-    await fetch("/api/racks", {
-      method: "POST",
-      body: JSON.stringify({ name: rackName, locationId: id, totalUnits: rackUnits }),
-    });
-    setRackName("");
-    setRackUnits(42);
-    setShowModal(false);
-    fetchRacks();
-    setIsSubmitting(false);
+    setFormError(null);
+    try {
+      const res = await fetch("/api/racks", {
+        method: "POST",
+        body: JSON.stringify({ name: rackName, locationId: id, totalUnits: rackUnits }),
+      });
+      if (!res.ok) {
+        const payload = await res.json().catch(() => ({} as any));
+        throw new Error(payload?.error || "Failed to create rack");
+      }
+      setRackName("");
+      setRackUnits(42);
+      setShowModal(false);
+      fetchRacks();
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "Failed to create rack");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -50,6 +78,7 @@ export default function DatacenterRacksPage() {
         <button 
           onClick={() => {
             if (!canManage) return;
+            setFormError(null);
             setShowModal(true);
           }}
           disabled={!canManage}
@@ -65,6 +94,7 @@ export default function DatacenterRacksPage() {
           <button
             onClick={() => {
               if (!canManage) return;
+              setFormError(null);
               setShowModal(true);
             }}
             disabled={!canManage}
@@ -75,20 +105,30 @@ export default function DatacenterRacksPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          {racks.map(rack => (
-            <Link
-              key={rack.id}
-              href={`/assets/locations/datacenters/${id}/racks/${rack.id}`}
-              className="bg-[#111620] border border-slate-800 p-5 rounded-2xl hover:border-blue-500/40 hover:bg-slate-900/20 transition-all"
-            >
-              <div className="flex items-center gap-3 text-white font-bold">
-                <LayoutGrid className="text-blue-400" size={18} /> {rack.name}
-              </div>
-              <div className="mt-2 text-slate-400 text-sm">
-                {rack._count?.assets ?? 0} assets • {rack.totalUnits ?? 42}U
-              </div>
-            </Link>
-          ))}
+          {racks.map(rack => {
+            const utilization = rackUtilization(rack);
+            return (
+              <Link
+                key={rack.id}
+                href={`/assets/locations/datacenters/${id}/racks/${rack.id}`}
+                className="bg-[#111620] border border-slate-800 p-5 rounded-2xl hover:border-blue-500/40 hover:bg-slate-900/20 transition-all"
+              >
+                <div className="flex items-center gap-3 text-white font-bold">
+                  <LayoutGrid className="text-blue-400" size={18} /> {rack.name}
+                </div>
+                <div className="mt-2 text-slate-400 text-sm">
+                  {rack._count?.assets ?? 0} assets • {utilization.used}U used / {utilization.total}U
+                </div>
+                <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-800">
+                  <div
+                    className="h-full bg-blue-600"
+                    style={{ width: `${Math.min(100, Math.max(0, utilization.percent))}%` }}
+                  />
+                </div>
+                <div className="mt-2 text-xs text-slate-500">{utilization.percent}% occupied</div>
+              </Link>
+            );
+          })}
         </div>
       )}
 
@@ -108,6 +148,11 @@ export default function DatacenterRacksPage() {
             onChange={(e) => setRackUnits(Number(e.target.value))}
             required
           />
+          {formError ? (
+            <div className="rounded-lg border border-red-900/50 bg-red-950/20 p-3 text-sm text-red-300">
+              {formError}
+            </div>
+          ) : null}
           <button disabled={!canManage || isSubmitting} className="w-full bg-blue-600 py-3 rounded-xl font-bold text-white disabled:opacity-50 disabled:pointer-events-none">
             {isSubmitting ? "Saving..." : "Create Rack"}
           </button>

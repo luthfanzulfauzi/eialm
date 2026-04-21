@@ -13,11 +13,27 @@ export async function GET(
   }
 
   try {
+    const { searchParams } = new URL(req.url);
+    const includeAssets = searchParams.get("includeAssets") === "1";
     const location = await prisma.location.findUnique({
       where: { id: params.id },
       include: {
+        assets: includeAssets
+          ? {
+              include: { rack: true, ips: true },
+              orderBy: [{ rackId: "asc" }, { name: "asc" }],
+            }
+          : false,
         racks: {
           include: {
+            assets: {
+              select: {
+                id: true,
+                rackUnitStart: true,
+                rackUnitSize: true,
+                rackFace: true,
+              },
+            },
             _count: {
               select: { assets: true }
             }
