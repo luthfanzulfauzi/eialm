@@ -215,7 +215,6 @@ The Docker app image has been verified to build successfully in the containerize
 
 There are still a few production-readiness concerns to address:
 
-- some build steps depend on external font fetching
 - some server-rendered paths currently assume database reachability during build optimization
 - reverse proxy / Cloudflare Tunnel deployment is not implemented yet
 - backup, observability, and security hardening are still pending

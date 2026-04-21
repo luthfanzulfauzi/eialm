@@ -10,6 +10,30 @@ const CreateRangeSchema = z.object({
   prefix: z.number().int().min(0).max(32),
 });
 
+function serializeRange(range: {
+  id: string;
+  network: string;
+  prefix: number;
+  cidr: string;
+  startAddress: string;
+  endAddress: string;
+  size: number;
+  createdAt: Date;
+  updatedAt: Date;
+}) {
+  return {
+    id: range.id,
+    network: range.network,
+    prefix: range.prefix,
+    cidr: range.cidr,
+    startAddress: range.startAddress,
+    endAddress: range.endAddress,
+    size: range.size,
+    createdAt: range.createdAt,
+    updatedAt: range.updatedAt,
+  };
+}
+
 export async function GET() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -55,7 +79,7 @@ export async function POST(req: Request) {
         size: created.size,
       },
     });
-    return NextResponse.json(created, { status: 201 });
+    return NextResponse.json(serializeRange(created), { status: 201 });
   } catch (e: any) {
     if (e?.code === "OVERLAP") {
       return NextResponse.json(

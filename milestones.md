@@ -149,7 +149,7 @@ Support datacenter, warehouse, rack, and rack-layout workflows for real infrastr
 
 ---
 
-## Milestone 4: Network Management (97% Complete)
+## Milestone 4: Network Management (100% Complete)
 
 **Goal**
 
@@ -168,7 +168,7 @@ Manage public and private address inventory, assignment, reservation, and operat
 - [x] Utilization and assignment summaries now include subnet grouping, numeric IP sorting, and status rollups for private inventory.
 - [x] Public and private IP states now support Hardware, VM, and Other assignment target metadata with required validation by status.
 - [x] Public and private network range, IP status, assignment, and deletion mutations now write audit records for operational traceability.
-- [ ] Authenticated browser-level validation should still be completed against real operator workflows in deployed mode.
+- [x] Authenticated Docker validation has been completed for public/private range CRUD, IP state validation, assignment metadata, audit logging, and page availability.
 
 **Deliverables**
 
@@ -185,7 +185,7 @@ Manage public and private address inventory, assignment, reservation, and operat
 **Exit Criteria**
 
 - [x] Operators can fully manage both private and public IP inventory from the product UI.
-- [ ] Address-state transitions are clear, validated, and operationally reliable across authenticated end-to-end deployment testing.
+- [x] Address-state transitions are clear, validated, and operationally reliable across authenticated end-to-end Docker deployment testing.
 
 ---
 
@@ -300,7 +300,7 @@ Align the application experience with the original system design for visibility,
 
 ---
 
-## Milestone 8: Deployment & Production Readiness (35% Complete)
+## Milestone 8: Deployment & Production Readiness (40% Complete)
 
 **Goal**
 
@@ -313,7 +313,7 @@ Move from containerized development readiness to production-safe deployment and 
 - [ ] Reverse proxy and direct DNS deployment path are not implemented.
 - [ ] Cloudflare Tunnel path is not implemented.
 - [ ] Backup, observability, and runbooks are missing.
-- [ ] Build-time dependence on external resources remains.
+- [x] Build-time dependence on Google Fonts fetching has been removed.
 - [ ] Some server-rendered build paths still assume database reachability.
 
 **Deliverables**
@@ -325,7 +325,7 @@ Move from containerized development readiness to production-safe deployment and 
 - [ ] Production-ready persistent volume and storage strategy
 - [ ] Backup and restore procedure
 - [ ] Health checks and observability setup
-- [ ] Build hardening against external font/network fetch dependency
+- [x] Build hardening against external font fetch dependency
 - [ ] Build/runtime hardening against unavailable database during static optimization
 - [ ] Security review and production validation pass
 

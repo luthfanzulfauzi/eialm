@@ -14,7 +14,7 @@ Last reviewed against the repository on April 22, 2026.
 - License CRUD, assignment, and expiry views are implemented.
 - Products / Application is now a persisted module with product CRUD, configurable option catalogs, asset/license relationships, business owners, and user-backed technical owners. The latest technical-owner migration still needs deployed validation.
 - Settings includes password change, login timeout, and product dropdown catalog management.
-- Docker development/build support exists, but production ingress, Cloudflare Tunnel or reverse proxy setup, backup, observability, and runbooks remain pending.
+- Docker development/build support exists and no longer depends on external font fetching, but production ingress, Cloudflare Tunnel or reverse proxy setup, backup, observability, and runbooks remain pending.
 
 ## Product Goal
 

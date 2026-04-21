@@ -10,6 +10,30 @@ const UpdateRangeSchema = z.object({
   prefix: z.number().int().min(0).max(32),
 });
 
+function serializeRange(range: {
+  id: string;
+  network: string;
+  prefix: number;
+  cidr: string;
+  startAddress: string;
+  endAddress: string;
+  size: number;
+  createdAt: Date;
+  updatedAt: Date;
+}) {
+  return {
+    id: range.id,
+    network: range.network,
+    prefix: range.prefix,
+    cidr: range.cidr,
+    startAddress: range.startAddress,
+    endAddress: range.endAddress,
+    size: range.size,
+    createdAt: range.createdAt,
+    updatedAt: range.updatedAt,
+  };
+}
+
 async function requireManager() {
   const session = await getServerSession(authOptions);
   if (!session || (session.user.role !== "ADMIN" && session.user.role !== "OPERATOR")) {
@@ -66,7 +90,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         size: updated.size,
       },
     });
-    return NextResponse.json(updated);
+    return NextResponse.json(serializeRange(updated));
   } catch (error) {
     return formatRangeError(error);
   }

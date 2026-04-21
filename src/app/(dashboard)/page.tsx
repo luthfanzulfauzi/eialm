@@ -127,7 +127,7 @@ export default async function DashboardPage() {
     return value
       .split("_")
       .filter(Boolean)
-      .map((part) => toTitleCase(part))
+      .map((part) => (part === "VM" ? "VM" : toTitleCase(part)))
       .join(" ");
   };
 
