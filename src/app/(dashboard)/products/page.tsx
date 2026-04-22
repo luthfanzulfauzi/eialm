@@ -141,6 +141,7 @@ const emptyForm: ProductFormState = {
 const lifecycleOptions: ProductLifecycle[] = ["PLANNING", "ACTIVE", "MAINTENANCE", "RETIRED"];
 const environmentOptions: ProductEnvironment[] = ["PRODUCTION", "STAGING", "DEVELOPMENT", "SHARED"];
 const criticalityOptions: ProductCriticality[] = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
+const pageSizeOptions = [5, 10, 20] as const;
 
 const optionSections: { type: ProductOptionType; title: string; helper: string }[] = [
   { type: "CATEGORY", title: "Category", helper: "Product or application classification values." },
@@ -190,6 +191,11 @@ export default function ProductsPage() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [lifecycleFilter, setLifecycleFilter] = useState<"ALL" | ProductLifecycle>("ALL");
+  const [environmentFilter, setEnvironmentFilter] = useState<"ALL" | ProductEnvironment>("ALL");
+  const [criticalityFilter, setCriticalityFilter] = useState<"ALL" | ProductCriticality>("ALL");
+  const [mappingFilter, setMappingFilter] = useState<"ALL" | "MAPPED" | "UNMAPPED">("ALL");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState<(typeof pageSizeOptions)[number]>(5);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isOptionsModalOpen, setIsOptionsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<ProductRecord | null>(null);
@@ -272,8 +278,17 @@ export default function ProductsPage() {
     return products.filter((product) => {
       const matchesLifecycle =
         lifecycleFilter === "ALL" ? true : product.lifecycle === lifecycleFilter;
+      const matchesEnvironment =
+        environmentFilter === "ALL" ? true : product.environment === environmentFilter;
+      const matchesCriticality =
+        criticalityFilter === "ALL" ? true : product.criticality === criticalityFilter;
+      const isMapped = product.assets.length > 0 || product.licenses.length > 0;
+      const matchesMapping =
+        mappingFilter === "ALL" ||
+        (mappingFilter === "MAPPED" && isMapped) ||
+        (mappingFilter === "UNMAPPED" && !isMapped);
 
-      if (!matchesLifecycle) {
+      if (!matchesLifecycle || !matchesEnvironment || !matchesCriticality || !matchesMapping) {
         return false;
       }
 
@@ -296,7 +311,26 @@ export default function ProductsPage() {
 
       return haystack.includes(normalizedSearch);
     });
-  }, [lifecycleFilter, products, search]);
+  }, [criticalityFilter, environmentFilter, lifecycleFilter, mappingFilter, products, search]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / pageSize));
+  const paginatedProducts = useMemo(() => {
+    const safePage = Math.min(currentPage, totalPages);
+    const start = (safePage - 1) * pageSize;
+    return filteredProducts.slice(start, start + pageSize);
+  }, [currentPage, filteredProducts, pageSize, totalPages]);
+  const paginationStart = filteredProducts.length === 0 ? 0 : (Math.min(currentPage, totalPages) - 1) * pageSize + 1;
+  const paginationEnd = Math.min(filteredProducts.length, Math.min(currentPage, totalPages) * pageSize);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [criticalityFilter, environmentFilter, lifecycleFilter, mappingFilter, pageSize, search]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   const openCreateModal = () => {
     setEditingProduct(null);
@@ -710,13 +744,13 @@ export default function ProductsPage() {
       </div>
 
       <section className="rounded-3xl border border-slate-800 bg-[#111620] p-6 shadow-xl">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-1 flex-col gap-3 sm:flex-row">
+        <div className="space-y-4">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search by name, code, category, domain, owner, or team"
-              className="sm:max-w-md"
+              className="xl:col-span-2"
             />
             <select
               value={lifecycleFilter}
@@ -730,10 +764,61 @@ export default function ProductsPage() {
                 </option>
               ))}
             </select>
+            <select
+              value={environmentFilter}
+              onChange={(e) => setEnvironmentFilter(e.target.value as "ALL" | ProductEnvironment)}
+              className="flex h-10 rounded-lg border border-slate-800 bg-slate-900/50 px-3 py-2 text-sm text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:border-blue-500 transition-all"
+            >
+              <option value="ALL">All environments</option>
+              {environmentOptions.map((option) => (
+                <option key={option} value={option}>
+                  {formatEnum(option)}
+                </option>
+              ))}
+            </select>
+            <select
+              value={criticalityFilter}
+              onChange={(e) => setCriticalityFilter(e.target.value as "ALL" | ProductCriticality)}
+              className="flex h-10 rounded-lg border border-slate-800 bg-slate-900/50 px-3 py-2 text-sm text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:border-blue-500 transition-all"
+            >
+              <option value="ALL">All criticality</option>
+              {criticalityOptions.map((option) => (
+                <option key={option} value={option}>
+                  {formatEnum(option)}
+                </option>
+              ))}
+            </select>
+            <select
+              value={mappingFilter}
+              onChange={(e) => setMappingFilter(e.target.value as "ALL" | "MAPPED" | "UNMAPPED")}
+              className="flex h-10 rounded-lg border border-slate-800 bg-slate-900/50 px-3 py-2 text-sm text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:border-blue-500 transition-all"
+            >
+              <option value="ALL">All mapping states</option>
+              <option value="MAPPED">Mapped to assets/licenses</option>
+              <option value="UNMAPPED">Unmapped</option>
+            </select>
           </div>
 
-          <div className="rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
-            Unmapped portfolio items: {summary.unmapped}
+          <div className="flex flex-col gap-3 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              Showing {paginationStart}-{paginationEnd} of {filteredProducts.length} filtered portfolio items
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
+                Unmapped: {summary.unmapped}
+              </span>
+              <select
+                value={pageSize}
+                onChange={(e) => setPageSize(Number(e.target.value) as (typeof pageSizeOptions)[number])}
+                className="rounded-lg border border-slate-800 bg-slate-900/50 px-3 py-2 text-xs text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:border-blue-500 transition-all"
+              >
+                {pageSizeOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option} / page
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
       </section>
@@ -760,7 +845,7 @@ export default function ProductsPage() {
             </p>
           </div>
         ) : (
-          filteredProducts.map((product) => (
+          paginatedProducts.map((product) => (
             <article key={product.id} className="rounded-3xl border border-slate-800 bg-[#111620] p-6 shadow-xl">
               <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
                 <div className="space-y-4">
@@ -871,6 +956,34 @@ export default function ProductsPage() {
           ))
         )}
       </section>
+
+      {!loading && filteredProducts.length > 0 ? (
+        <div className="flex flex-col gap-3 rounded-2xl border border-slate-800 bg-[#111620] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-sm text-slate-500">
+            Page {Math.min(currentPage, totalPages)} of {totalPages}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+              disabled={currentPage <= 1}
+            >
+              Previous
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+              disabled={currentPage >= totalPages}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      ) : null}
 
       <Modal
         isOpen={isModalOpen}

@@ -12,7 +12,7 @@ Last reviewed against the repository on April 22, 2026.
 - Asset hardware CRUD, audit trail, CSV import/export, advanced asset filtering, pagination, placement validation, datacenter/warehouse CRUD, rack CRUD, warehouse storage views, rack utilization summaries, and cross-facility rack layout placement flows are implemented.
 - Public and private IP inventory management are implemented, including ranges, generated IP inventory, status transitions, assignment target metadata, and audit logging for network mutations.
 - License CRUD, assignment, and expiry views are implemented.
-- Products / Application is now a persisted module with product CRUD, configurable option catalogs, asset/license relationships, business owners, and user-backed technical owners. The latest technical-owner migration still needs deployed validation.
+- Products / Application is now a persisted module with product CRUD, configurable option catalogs, asset/license relationships, business owners, user-backed technical owners, advanced local filtering, and pagination. The latest technical-owner migration and cleanup path have been validated in Docker.
 - Settings includes password change, login timeout, and product dropdown catalog management.
 - Docker development/build support exists and no longer depends on external font fetching, but production ingress, Cloudflare Tunnel or reverse proxy setup, backup, observability, and runbooks remain pending.
 
@@ -124,7 +124,7 @@ prisma/
 
 - Dashboard needs expired items, expiring licenses, and repair-focused widgets to fully match the original scope.
 - Global search is not implemented yet.
-- Advanced filters, pagination, and unified toast notifications need to be standardized across modules beyond the completed Asset Inventory core.
+- Unified toast notifications need to be standardized across modules.
 - Product portfolio should eventually relate to IPs, locations, compliance metadata, and operational dependency views.
 - Production design still needs ingress options for direct DNS or Cloudflare Tunnel, backup/restore, health checks, observability, and security hardening.
 - Repository cleanup should remove confirmed-unneeded tracked backup files and keep runtime data out of source control.

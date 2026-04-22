@@ -189,7 +189,7 @@ Manage public and private address inventory, assignment, reservation, and operat
 
 ---
 
-## Milestone 5: Products & Application Portfolio (70% Complete)
+## Milestone 5: Products & Application Portfolio (80% Complete)
 
 **Goal**
 
@@ -203,10 +203,11 @@ Add a dedicated portfolio layer for managing business products and applications,
 - [x] Products can be related to assets and licenses.
 - [x] Product option catalogs exist for category, business domain, support team, and business owner values.
 - [x] Product dropdown catalog management exists in Settings and via `/api/product-options`.
-- [x] Technical ownership has moved from a product-option catalog to a user-backed relation in the current working tree.
-- [ ] The technical-owner migration needs deployed validation against existing product data.
+- [x] Technical ownership has moved from a product-option catalog to a user-backed relation.
+- [x] The product technical-owner migration and cleanup path have been validated in Docker with no pending migrations.
+- [x] Portfolio UX now includes local search, lifecycle, environment, criticality, mapping-state filters, page-size controls, and pagination.
 - [ ] Optional relation mapping to IPs, locations, compliance metadata, and operational dependency views is still missing.
-- [ ] Portfolio UX still needs pagination, richer filtering, and consistent feedback/toast behavior.
+- [ ] Portfolio UX still needs consistent feedback/toast behavior and deeper dependency views.
 
 **Deliverables**
 
@@ -216,16 +217,18 @@ Add a dedicated portfolio layer for managing business products and applications,
 - [x] Relation mapping to assets and licenses
 - [x] Ownership model for business owner catalog values and user-backed technical owners
 - [x] Admin-managed option catalogs for portfolio dropdown values
-- [ ] Migration validation and seeded/default catalog review
+- [x] Migration validation and technical-owner cleanup review in Docker
+- [x] Portfolio pagination and advanced filtering
 - [ ] Optional relation mapping to IPs, locations, and compliance metadata
-- [ ] Portfolio pagination, advanced filtering, and polished notification UX
+- [ ] Polished notification/toast UX
 
 **Exit Criteria**
 
 - [x] The platform can store and manage product/application portfolio records as first-class entities.
 - [x] Products/applications can be linked to relevant infrastructure, license, and ownership data without duplicating existing records.
-- Product ownership migration and CRUD workflows are validated in Docker/deployed mode.
-- Portfolio views remain usable as data volume grows.
+- [x] Product ownership migration and protected portfolio page availability are validated in Docker/deployed mode.
+- [x] Portfolio views remain usable as data volume grows through filtering and pagination.
+- Portfolio workflows still need authenticated browser CRUD validation and polished feedback behavior.
 
 ---
 

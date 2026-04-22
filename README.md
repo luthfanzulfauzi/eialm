@@ -21,13 +21,14 @@ Implemented well today:
 - persisted products / application portfolio CRUD
 - product option catalogs for categories, domains, support teams, and business owners
 - product relationships to assets, licenses, and user-backed technical owners
+- product portfolio search, lifecycle/environment/criticality/mapping filters, and pagination
 - asset CSV import/export, advanced asset filtering, pagination, and placement validation
 - dashboard summary cards and recent activity
 - system settings for password change and login timeout
 
 Still in progress:
 
-- product portfolio polish, migration validation, and end-to-end browser testing
+- product portfolio feedback/toast polish and authenticated end-to-end browser testing
 - expired and expiring dashboard sections
 - global search
 - cross-module advanced filtering/pagination polish and unified toast notifications
@@ -207,11 +208,11 @@ Current API routes include:
 
 The Asset Inventory page now includes query-persisted filtering by category, status, location type, and rack state, plus paginated large-table navigation. Asset create, update, and CSV import share service-level placement validation for warehouse, datacenter, and rack consistency.
 
-The Products / Application page is now a persisted implementation slice. It includes product CRUD, summary metrics, local search, lifecycle filtering, asset/license relationship mapping, user-backed technical owners, and admin-managed dropdown catalogs. The newest technical-owner migration still needs deployed validation against existing product data.
+The Products / Application page is now a persisted implementation slice. It includes product CRUD, summary metrics, local search, lifecycle/environment/criticality/mapping filters, pagination, asset/license relationship mapping, user-backed technical owners, and admin-managed dropdown catalogs. The technical-owner migration and cleanup path have been validated in Docker with no pending migrations.
 
 ## Build Notes
 
-The Docker app image has been verified to build successfully in the containerized path.
+The Docker app image has been verified to build successfully in the containerized path, and the compose runtime starts with Prisma reporting no pending migrations.
 
 There are still a few production-readiness concerns to address:
 
@@ -221,7 +222,7 @@ There are still a few production-readiness concerns to address:
 
 ## Known Gaps
 
-- Products / Application needs end-to-end validation after the technical-owner migration and further UX polish.
+- Products / Application needs authenticated end-to-end browser CRUD validation and further feedback/toast polish.
 - Global search is still a placeholder.
 - Cross-module pagination/filter consistency and toast notifications are still pending outside the completed Asset Inventory core.
 - Dashboard expired/expiring sections are still incomplete.
@@ -235,7 +236,7 @@ There are still a few production-readiness concerns to address:
 
 The next major priorities are:
 
-1. validate the Products / Application technical-owner migration and CRUD flow in Docker
+1. validate Products / Application CRUD in an authenticated browser flow
 2. add expired and expiring operational widgets to the dashboard
 3. implement global search
 4. improve advanced filters, pagination, and feedback/toast UX
