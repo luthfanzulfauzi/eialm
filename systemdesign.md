@@ -8,10 +8,10 @@ Last reviewed against the repository on April 22, 2026.
 
 - Next.js 14 App Router, TypeScript, Tailwind CSS, Prisma, PostgreSQL, NextAuth.js, Zustand, React Hook Form, Zod, Docker, and Docker Compose are in use.
 - Authentication, RBAC, user management, password change, login timeout, and protected API/page access are implemented.
-- Dashboard summary cards and recent activity are implemented; expired/expiring operational sections and global search are still missing.
+- Dashboard summary cards, recent activity, and license expiration operational notices are implemented; global search is still missing.
 - Asset hardware CRUD, audit trail, CSV import/export, advanced asset filtering, pagination, placement validation, datacenter/warehouse CRUD, rack CRUD, warehouse storage views, rack utilization summaries, and cross-facility rack layout placement flows are implemented.
 - Public and private IP inventory management are implemented, including ranges, generated IP inventory, status transitions, assignment target metadata, and audit logging for network mutations.
-- License CRUD, assignment, and expiry views are implemented.
+- License CRUD, assignment, expiry views, scheduled expiration refresh/notifications, maintenance scheduling, maintenance history, and broken-asset repair workflows are implemented.
 - Products / Application is now a persisted module with product CRUD, configurable option catalogs, asset/license relationships, business owners, user-backed technical owners, advanced local filtering, and pagination. The latest technical-owner migration and cleanup path have been validated in Docker.
 - Settings includes password change, login timeout, and product dropdown catalog management.
 - Docker development/build support exists and no longer depends on external font fetching, but production ingress, Cloudflare Tunnel or reverse proxy setup, backup, observability, and runbooks remain pending.
@@ -112,17 +112,19 @@ prisma/
 ## Domain Model Snapshot
 
 - `User`: credentials, role, login timeout, activity metadata, audit logs, and technical product ownership.
-- `Asset`: hardware inventory, lifecycle state, server specifications, rack placement, IPs, licenses, products, and audit logs.
+- `Asset`: hardware inventory, lifecycle state, server specifications, rack placement, IPs, licenses, products, maintenance records, and audit logs.
 - `Location` and `Rack`: datacenter/warehouse placement structure and rack unit layout.
 - `PublicIPRange`, `PrivateIPRange`, and `IPAddress`: public/private address inventory with assignment status and target metadata.
 - `License`: optional key/file, expiry state, asset assignment, and product relationships.
+- `MaintenanceRecord`: scheduled maintenance and repair history for assets with status, priority, lifecycle timestamps, and resolution notes.
+- `SystemJobRun` and `OperationalNotification`: lightweight operational job state and in-app risk notices for scheduled lifecycle checks.
 - `Product`: portfolio record with environment, lifecycle, criticality, documentation, notes, option-backed category/domain/team/business owner, user-backed technical owner, assets, and licenses.
 - `ProductOption`: configurable dropdown catalog for product categories, business domains, support teams, and business owners.
 - `AuditLog`: asset, network, and platform activity records.
 
 ## Remaining Design Gaps
 
-- Dashboard needs expired items, expiring licenses, and repair-focused widgets to fully match the original scope.
+- Dashboard needs richer repair-focused widgets to fully match the original scope.
 - Global search is not implemented yet.
 - Unified toast notifications need to be standardized across modules.
 - Product portfolio should eventually relate to IPs, locations, compliance metadata, and operational dependency views.

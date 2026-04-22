@@ -4,7 +4,7 @@ import { useSidebarStore } from "@/store/useSidebarStore";
 import { cn } from "@/lib/utils";
 import { 
   LayoutDashboard, Server, Shield, Key, Settings, 
-  ChevronLeft, LogOut, Users, ChevronDown, Database, Warehouse, Box, Globe, Boxes
+  ChevronLeft, LogOut, Users, ChevronDown, Database, Warehouse, Box, Globe, Boxes, Wrench
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -100,6 +100,7 @@ export const Sidebar = () => {
       roles: ["ADMIN", "OPERATOR", "VIEWER"],
     },
     { name: "Licenses", icon: Key, path: "/licenses", roles: ["ADMIN", "OPERATOR", "VIEWER"] },
+    { name: "Maintenance", icon: Wrench, path: "/maintenance", roles: ["ADMIN", "OPERATOR", "VIEWER"] },
     { name: "Users", icon: Users, path: "/users", roles: ["ADMIN"] },
     { name: "Settings", icon: Settings, path: "/settings", roles: ["ADMIN", "OPERATOR"] },
   ];

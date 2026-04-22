@@ -75,6 +75,27 @@ enum ProductOptionType {
   BUSINESS_OWNER
 }
 
+enum MaintenanceType {
+  PREVENTIVE
+  INSPECTION
+  REPAIR
+  OTHER
+}
+
+enum MaintenanceStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum MaintenancePriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
 model User {
   id            String     @id @default(cuid())
   email         String     @unique
@@ -154,6 +175,7 @@ model Asset {
   ips          IPAddress[]
   licenses     License[]
   products     Product[]
+  maintenanceRecords MaintenanceRecord[]
   auditLogs    AuditLog[]
   
   createdAt    DateTime    @default(now())
@@ -286,6 +308,54 @@ model ProductOption {
 
   @@unique([type, value])
   @@index([type, sortOrder, value])
+}
+
+model MaintenanceRecord {
+  id          String              @id @default(cuid())
+  title       String
+  type        MaintenanceType     @default(PREVENTIVE)
+  status      MaintenanceStatus   @default(SCHEDULED)
+  priority    MaintenancePriority @default(MEDIUM)
+  description String?
+  scheduledAt DateTime
+  startedAt   DateTime?
+  completedAt DateTime?
+  resolution  String?
+
+  assetId     String
+  asset       Asset               @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  @@index([assetId])
+  @@index([status])
+  @@index([scheduledAt])
+  @@index([type])
+}
+
+model SystemJobRun {
+  key       String   @id
+  lastRunAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model OperationalNotification {
+  id         String    @id @default(cuid())
+  type       String
+  severity   String
+  title      String
+  message    String
+  href       String?
+  dedupeKey  String    @unique
+  resolvedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([severity])
+  @@index([resolvedAt])
+  @@index([createdAt])
 }
 
 model AuditLog {

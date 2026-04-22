@@ -232,7 +232,7 @@ Add a dedicated portfolio layer for managing business products and applications,
 
 ---
 
-## Milestone 6: License & Maintenance Management (65% Complete)
+## Milestone 6: License & Maintenance Management (100% Complete)
 
 **Goal**
 
@@ -245,7 +245,8 @@ Manage license lifecycle, expiration risk, and maintenance/repair workflows for 
 - [x] Working license API routes now support list, create, update, delete, and assignment.
 - [x] License CRUD and assignment UX are now available in the dashboard.
 - [x] Expiration views are now visible in the license manager, with server-side expiry refresh on access.
-- [ ] Maintenance scheduling/history and broken-repair workflow are not yet implemented.
+- [x] Expiration refresh and operational notification logic are implemented.
+- [x] Maintenance scheduling/history and broken-repair workflow are implemented.
 
 **Deliverables**
 
@@ -253,14 +254,14 @@ Manage license lifecycle, expiration risk, and maintenance/repair workflows for 
 - [x] License manager UI with create/edit/delete flows
 - [x] Asset-to-license assignment workflow
 - [x] Expiring and expired license views
-- [ ] Expiration refresh/notification job or scheduled logic
-- [ ] Maintenance scheduling model and UI
-- [ ] Broken/repair operational workflow and dedicated views
+- [x] Expiration refresh/notification job or scheduled logic
+- [x] Maintenance scheduling model and UI
+- [x] Broken/repair operational workflow and dedicated views
 
 **Exit Criteria**
 
 - [x] License pages are fully functional end-to-end.
-- Expiration risk and maintenance work are visible and actionable inside the product.
+- [x] Expiration risk and maintenance work are visible and actionable inside the product.
 
 ---
 

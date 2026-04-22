@@ -1,7 +1,11 @@
+export const dynamic = "force-dynamic";
+
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { AuditTrail } from "@/components/dashboard/AuditTrail";
-import { Server, Globe, ShieldAlert, Key } from "lucide-react"; // Imported Key for Licenses
+import { Server, Globe, ShieldAlert, Key, Bell } from "lucide-react"; // Imported Key for Licenses
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { LicenseService } from "@/services/licenseService";
 
 type UpdateDetails = {
   before?: {
@@ -55,13 +59,42 @@ const safeParseJson = <T,>(value: string): T | null => {
 };
 
 export default async function DashboardPage() {
+  await LicenseService.runExpirationRefreshJob();
+
   // 1. Fetch real-time metrics from the database
-  const [totalAssets, assignedPublicIPs, totalPublicIPs, brokenAssets, totalLicenses] = await Promise.all([
+  const [
+    totalAssets,
+    assignedPublicIPs,
+    totalPublicIPs,
+    brokenAssets,
+    totalLicenses,
+    expiredLicenses,
+    expiringLicenses,
+    operationalNotifications,
+  ] = await Promise.all([
     prisma.asset.count(),
     prisma.iPAddress.count({ where: { isPublic: true, status: "ASSIGNED" } }),
     prisma.iPAddress.count({ where: { isPublic: true } }),
     prisma.asset.count({ where: { status: 'BROKEN' } }),
     prisma.license.count(), // Counting total managed licenses
+    prisma.license.count({ where: { isExpired: true } }),
+    prisma.license.count({
+      where: {
+        isExpired: false,
+        expiryDate: {
+          gte: new Date(),
+          lte: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        },
+      },
+    }),
+    prisma.operationalNotification.findMany({
+      where: { resolvedAt: null },
+      take: 6,
+      orderBy: [
+        { severity: "asc" },
+        { createdAt: "desc" },
+      ],
+    }),
   ]);
 
   // 2. Fetch real recent audit logs for the global activity feed
@@ -370,14 +403,48 @@ export default async function DashboardPage() {
         </div>
         
         <div className="bg-[#151921] border border-slate-800 rounded-2xl p-6">
-          <h3 className="text-lg font-bold text-white mb-4">Quick Actions</h3>
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-lg font-bold text-white">Operational Notices</h3>
+            <Bell size={18} className="text-amber-300" />
+          </div>
+          <div className="mb-5 grid grid-cols-2 gap-3">
+            <Link href="/licenses" className="rounded-2xl border border-red-500/20 bg-red-500/10 p-3">
+              <div className="text-2xl font-bold text-white">{expiredLicenses}</div>
+              <div className="text-[10px] font-bold uppercase tracking-wider text-red-200">Expired Licenses</div>
+            </Link>
+            <Link href="/licenses" className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-3">
+              <div className="text-2xl font-bold text-white">{expiringLicenses}</div>
+              <div className="text-[10px] font-bold uppercase tracking-wider text-amber-200">Expiring Soon</div>
+            </Link>
+          </div>
           <div className="space-y-3">
-             <button className="w-full py-3 bg-blue-600 rounded-xl font-bold text-sm hover:bg-blue-700 transition-all">
-               Generate Inventory Report
-             </button>
-             <button className="w-full py-3 bg-slate-800 rounded-xl font-bold text-sm border border-slate-700 hover:bg-slate-700 transition-all">
-               Audit IP Assignments
-             </button>
+            {operationalNotifications.length > 0 ? (
+              operationalNotifications.map((notice) => (
+                <Link
+                  key={notice.id}
+                  href={notice.href || "/licenses"}
+                  className="block rounded-2xl border border-slate-800 bg-slate-900/40 p-4 transition-colors hover:border-slate-600"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-bold text-white">{notice.title}</div>
+                      <div className="mt-1 text-xs text-slate-500">{notice.message}</div>
+                    </div>
+                    <span className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase ${
+                      notice.severity === "CRITICAL"
+                        ? "bg-red-500/10 text-red-300"
+                        : "bg-amber-500/10 text-amber-300"
+                    }`}>
+                      {notice.severity}
+                    </span>
+                  </div>
+                </Link>
+              ))
+            ) : (
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4 text-sm text-slate-500">
+                No active license expiration notices.
+              </div>
+            )}
           </div>
         </div>
       </div>

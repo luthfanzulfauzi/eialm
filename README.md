@@ -22,14 +22,14 @@ Implemented well today:
 - product option catalogs for categories, domains, support teams, and business owners
 - product relationships to assets, licenses, and user-backed technical owners
 - product portfolio search, lifecycle/environment/criticality/mapping filters, and pagination
+- license CRUD, optional key/file metadata, product/asset linkage, expiry views, expiration notices, and maintenance repair workflows
 - asset CSV import/export, advanced asset filtering, pagination, and placement validation
-- dashboard summary cards and recent activity
+- dashboard summary cards, recent activity, and license expiration operational notices
 - system settings for password change and login timeout
 
 Still in progress:
 
 - product portfolio feedback/toast polish and authenticated end-to-end browser testing
-- expired and expiring dashboard sections
 - global search
 - cross-module advanced filtering/pagination polish and unified toast notifications
 - production ingress, backup, and deployment hardening
@@ -63,6 +63,8 @@ The working roadmap is tracked in [milestones.md](./milestones.md).
   public/private IP ranges, inventory, status transitions, assignment metadata, and audit trail coverage
 - Products / Application Portfolio
   product/application CRUD, configurable catalogs, ownership, and asset/license relationships
+- License & Maintenance
+  license lifecycle tracking, asset/product relations, maintenance scheduling, broken-asset repair queue, and service history
 - User Management
   admin-only CRUD and role updates
 - Settings
@@ -111,6 +113,7 @@ POSTGRES_PASSWORD=password123
 
 ADMIN_EMAIL=admin@eialm.internal
 ADMIN_PASSWORD=admin123
+CRON_SECRET=replace-with-a-long-random-secret
 ```
 
 Notes:
@@ -202,6 +205,9 @@ Current API routes include:
 - `/api/licenses`
 - `/api/licenses/[id]`
 - `/api/licenses/[id]/assign`
+- `/api/licenses/expiration-refresh`
+- `/api/maintenance`
+- `/api/maintenance/[id]`
 - `/api/settings/password`
 - `/api/settings/login-timeout`
 - `/api/activity`
@@ -209,6 +215,13 @@ Current API routes include:
 The Asset Inventory page now includes query-persisted filtering by category, status, location type, and rack state, plus paginated large-table navigation. Asset create, update, and CSV import share service-level placement validation for warehouse, datacenter, and rack consistency.
 
 The Products / Application page is now a persisted implementation slice. It includes product CRUD, summary metrics, local search, lifecycle/environment/criticality/mapping filters, pagination, asset/license relationship mapping, user-backed technical owners, and admin-managed dropdown catalogs. The technical-owner migration and cleanup path have been validated in Docker with no pending migrations.
+
+License expiration refresh runs opportunistically from the dashboard and can also be triggered by a scheduler:
+
+```bash
+curl -X POST http://localhost:3000/api/licenses/expiration-refresh \
+  -H "Authorization: Bearer $CRON_SECRET"
+```
 
 ## Build Notes
 
@@ -225,7 +238,7 @@ There are still a few production-readiness concerns to address:
 - Products / Application needs authenticated end-to-end browser CRUD validation and further feedback/toast polish.
 - Global search is still a placeholder.
 - Cross-module pagination/filter consistency and toast notifications are still pending outside the completed Asset Inventory core.
-- Dashboard expired/expiring sections are still incomplete.
+- Richer dashboard repair widgets are still incomplete.
 - Production deployment needs ingress, backup, and operational hardening work.
 - Residual tracked backup files exist under `src/` and should be removed once confirmed unnecessary:
   `src/app/(dashboard)/page.tsx.backup`, `src/lib/validations/auth.ts.backup`, and `src/types/index.d.ts.backup`.
@@ -237,10 +250,9 @@ There are still a few production-readiness concerns to address:
 The next major priorities are:
 
 1. validate Products / Application CRUD in an authenticated browser flow
-2. add expired and expiring operational widgets to the dashboard
-3. implement global search
-4. improve advanced filters, pagination, and feedback/toast UX
-5. harden production deployment and operations
+2. implement global search
+3. improve advanced filters, pagination, and feedback/toast UX
+4. harden production deployment and operations
 
 See [milestones.md](./milestones.md) for the milestone-plus-deliverables plan.
 

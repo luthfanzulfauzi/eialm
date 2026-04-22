@@ -26,6 +26,7 @@ services:
       DATABASE_URL: postgresql://admin:password123@db:5432/eialm_db?schema=public
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
       NEXTAUTH_URL: ${NEXTAUTH_URL}
+      CRON_SECRET: ${CRON_SECRET:-}
       NODE_ENV: production
     depends_on:
       db:
