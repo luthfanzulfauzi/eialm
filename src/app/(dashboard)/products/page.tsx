@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/Modal";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/providers/toast-provider";
 
 type ProductEnvironment = "PRODUCTION" | "STAGING" | "DEVELOPMENT" | "SHARED";
 type ProductLifecycle = "PLANNING" | "ACTIVE" | "MAINTENANCE" | "RETIRED";
@@ -174,6 +175,7 @@ const toggleRelation = (currentValues: string[], relationId: string) => {
 
 export default function ProductsPage() {
   const { data: session } = useSession();
+  const toast = useToast();
   const [products, setProducts] = useState<ProductRecord[]>([]);
   const [assets, setAssets] = useState<AssetOption[]>([]);
   const [licenses, setLicenses] = useState<LicenseOption[]>([]);
@@ -261,6 +263,13 @@ export default function ProductsPage() {
 
   useEffect(() => {
     void fetchProducts();
+  }, []);
+
+  useEffect(() => {
+    const initialSearch = new URLSearchParams(window.location.search).get("q");
+    if (initialSearch) {
+      setSearch(initialSearch);
+    }
   }, []);
 
   const refreshProductOptions = async () => {
@@ -429,6 +438,7 @@ export default function ProductsPage() {
       setEditingOptionId(null);
       setEditingOptionValue("");
       setOptionMessage("Dropdown value updated.");
+      toast.success("Dropdown value updated.");
       await refreshProductOptions();
       await fetchProducts(true);
     } catch (error) {
@@ -452,6 +462,7 @@ export default function ProductsPage() {
       }
 
       setOptionMessage("Dropdown value deleted.");
+      toast.success("Dropdown value deleted.");
       await refreshProductOptions();
     } catch (error) {
       setOptionMessage(error instanceof Error ? error.message : "Failed to delete dropdown value");
@@ -517,6 +528,7 @@ export default function ProductsPage() {
 
       closeModal();
       await fetchProducts(true);
+      toast.success(editingProduct ? "Product updated successfully." : "Product created successfully.");
     } catch (saveError) {
       setFormError(saveError instanceof Error ? saveError.message : "Failed to save product");
     } finally {
@@ -536,8 +548,9 @@ export default function ProductsPage() {
         throw new Error(payload?.error || "Failed to delete product");
       }
       await fetchProducts(true);
+      toast.success("Product deleted successfully.");
     } catch (deleteError) {
-      window.alert(deleteError instanceof Error ? deleteError.message : "Failed to delete product");
+      toast.error(deleteError instanceof Error ? deleteError.message : "Failed to delete product");
     } finally {
       setDeletingId(null);
     }

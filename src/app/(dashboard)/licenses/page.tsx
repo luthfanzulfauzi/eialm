@@ -11,6 +11,7 @@ import {
   Loader2,
   Pencil,
   Plus,
+  Search,
   Trash2,
   Unplug,
 } from "lucide-react";
@@ -18,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/Modal";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/providers/toast-provider";
 
 type AssetOption = {
   id: string;
@@ -93,6 +95,7 @@ const getLicenseState = (license: LicenseRecord) => {
 
 export default function LicensePage() {
   const { data: session } = useSession();
+  const toast = useToast();
   const [licenses, setLicenses] = useState<LicenseRecord[]>([]);
   const [assets, setAssets] = useState<AssetOption[]>([]);
   const [products, setProducts] = useState<ProductOption[]>([]);
@@ -107,6 +110,7 @@ export default function LicensePage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "active" | "expiring" | "expired" | "unassigned">("all");
+  const [search, setSearch] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingLicense, setEditingLicense] = useState<LicenseRecord | null>(null);
   const [form, setForm] = useState<LicenseFormState>(emptyForm);
@@ -159,16 +163,44 @@ export default function LicensePage() {
     void fetchLicenses();
   }, []);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const nextFilter = params.get("filter");
+    const nextSearch = params.get("q");
+    if (nextFilter && ["all", "active", "expiring", "expired", "unassigned"].includes(nextFilter)) {
+      setFilter(nextFilter as typeof filter);
+    }
+    if (nextSearch) {
+      setSearch(nextSearch);
+    }
+  }, []);
+
   const filteredLicenses = useMemo(() => {
+    const normalizedSearch = search.trim().toLowerCase();
     return licenses.filter((license) => {
       const state = getLicenseState(license);
-      if (filter === "active") return state === "active";
-      if (filter === "expiring") return state === "expiring";
-      if (filter === "expired") return state === "expired";
-      if (filter === "unassigned") return !license.assetId && license.products.length === 0;
-      return true;
+      const matchesFilter =
+        filter === "all" ||
+        (filter === "active" && state === "active") ||
+        (filter === "expiring" && state === "expiring") ||
+        (filter === "expired" && state === "expired") ||
+        (filter === "unassigned" && !license.assetId && license.products.length === 0);
+
+      if (!matchesFilter) return false;
+      if (!normalizedSearch) return true;
+
+      return [
+        license.name,
+        license.key,
+        license.licenseFile,
+        license.asset?.name,
+        license.asset?.serialNumber,
+        ...license.products.flatMap((product) => [product.name, product.code]),
+      ]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(normalizedSearch));
     });
-  }, [filter, licenses]);
+  }, [filter, licenses, search]);
 
   const openCreateModal = () => {
     setEditingLicense(null);
@@ -231,6 +263,7 @@ export default function LicensePage() {
 
       closeModal();
       await fetchLicenses(true);
+      toast.success(editingLicense ? "License updated successfully." : "License created successfully.");
     } catch (saveError) {
       setFormError(saveError instanceof Error ? saveError.message : "Failed to save license");
     } finally {
@@ -250,8 +283,9 @@ export default function LicensePage() {
         throw new Error(payload?.error || "Failed to delete license");
       }
       await fetchLicenses(true);
+      toast.success("License deleted successfully.");
     } catch (deleteError) {
-      window.alert(deleteError instanceof Error ? deleteError.message : "Failed to delete license");
+      toast.error(deleteError instanceof Error ? deleteError.message : "Failed to delete license");
     } finally {
       setDeletingId(null);
     }
@@ -270,8 +304,9 @@ export default function LicensePage() {
         throw new Error(payload?.error || "Failed to unassign license");
       }
       await fetchLicenses(true);
+      toast.success("License assignment cleared.");
     } catch (assignError) {
-      window.alert(assignError instanceof Error ? assignError.message : "Failed to unassign license");
+      toast.error(assignError instanceof Error ? assignError.message : "Failed to unassign license");
     } finally {
       setAssigningId(null);
     }
@@ -355,6 +390,16 @@ export default function LicensePage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <div className="relative min-w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+              <input
+                type="text"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search licenses, keys, assets..."
+                className="h-9 w-full rounded-lg border border-slate-800 bg-slate-900 pl-9 pr-3 text-sm text-white outline-none transition-colors focus:border-blue-500"
+              />
+            </div>
             {[
               { id: "all", label: "All" },
               { id: "active", label: "Active" },

@@ -8,6 +8,7 @@ import { ChevronLeft, ChevronRight, Download, Plus, Search, Upload } from "lucid
 import { useRouter, useSearchParams } from "next/navigation";
 import { AssetFormValues } from "@/lib/validations/asset";
 import { useRole } from "@/hooks/useRole";
+import { useToast } from "@/providers/toast-provider";
 
 /**
  * Inner component that uses dynamic hooks like useSearchParams.
@@ -17,6 +18,7 @@ function HardwareContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isViewer } = useRole();
+  const toast = useToast();
   
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -102,13 +104,14 @@ function HardwareContent() {
         setShowCreateModal(false);
         await refreshTable();
         router.refresh();
+        toast.success("Asset created successfully.");
         return;
       }
       const payload = await response.json().catch(() => ({} as any));
       throw new Error(payload?.error || "Failed to create asset");
     } catch (error) {
       console.error("Failed to create asset:", error);
-      window.alert(error instanceof Error ? error.message : "Failed to create asset");
+      toast.error(error instanceof Error ? error.message : "Failed to create asset");
     }
   };
 
@@ -126,13 +129,14 @@ function HardwareContent() {
         setEditAsset(null);
         await refreshTable();
         router.refresh();
+        toast.success("Asset updated successfully.");
         return;
       }
       const payload = await response.json().catch(() => ({} as any));
       throw new Error(payload?.error || "Failed to update asset");
     } catch (error) {
       console.error("Failed to update asset:", error);
-      window.alert(error instanceof Error ? error.message : "Failed to update asset");
+      toast.error(error instanceof Error ? error.message : "Failed to update asset");
     }
   };
 
@@ -149,9 +153,14 @@ function HardwareContent() {
       if (response.ok) {
         await refreshTable();
         router.refresh();
+        toast.success("Asset deleted successfully.");
+      } else {
+        const payload = await response.json().catch(() => ({} as any));
+        throw new Error(payload?.error || "Failed to delete asset");
       }
     } catch (error) {
       console.error("Failed to delete asset:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to delete asset");
     }
   };
 
@@ -161,7 +170,7 @@ function HardwareContent() {
     const res = await fetch(`/api/assets/export?${exportParams.toString()}`);
     if (!res.ok) {
       const payload = await res.text().catch(() => "");
-      window.alert(payload || "Failed to export assets");
+      toast.error(payload || "Failed to export assets");
       return;
     }
     const blob = await res.blob();
@@ -174,11 +183,12 @@ function HardwareContent() {
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
+    toast.success("Asset export started.");
   };
 
   const handleImport = async () => {
     if (!importFile) {
-      window.alert("Please select a CSV file to import.");
+      toast.info("Please select a CSV file to import.");
       return;
     }
     try {
@@ -195,8 +205,9 @@ function HardwareContent() {
       setImportResult(payload);
       await refreshTable();
       router.refresh();
+      toast.success(`Imported ${payload.created + payload.updated} asset rows.`);
     } catch (e) {
-      window.alert(e instanceof Error ? e.message : "Failed to import assets");
+      toast.error(e instanceof Error ? e.message : "Failed to import assets");
     } finally {
       setImporting(false);
     }

@@ -24,14 +24,16 @@ Implemented well today:
 - product portfolio search, lifecycle/environment/criticality/mapping filters, and pagination
 - license CRUD, optional key/file metadata, product/asset linkage, expiry views, expiration notices, and maintenance repair workflows
 - asset CSV import/export, advanced asset filtering, pagination, and placement validation
-- dashboard summary cards, recent activity, and license expiration operational notices
+- dashboard summary cards, recent activity, expired/expiring license widgets, repair focus views, and operational notices
+- authenticated global search across assets, licenses, IPs, products, locations, racks, and maintenance records
+- unified toast feedback for core asset, license, and product workflows
 - system settings for password change and login timeout
 
 Still in progress:
 
-- product portfolio feedback/toast polish and authenticated end-to-end browser testing
-- global search
-- cross-module advanced filtering/pagination polish and unified toast notifications
+- authenticated end-to-end browser testing for dashboard/search/toast flows
+- deeper portfolio dependency views across IPs, locations, and compliance metadata
+- cross-module filtering/pagination polish beyond the core inventory and portfolio flows
 - production ingress, backup, and deployment hardening
 
 The working roadmap is tracked in [milestones.md](./milestones.md).
@@ -65,6 +67,8 @@ The working roadmap is tracked in [milestones.md](./milestones.md).
   product/application CRUD, configurable catalogs, ownership, and asset/license relationships
 - License & Maintenance
   license lifecycle tracking, asset/product relations, maintenance scheduling, broken-asset repair queue, and service history
+- Global Search & UX
+  Cmd/Ctrl+K cross-module search, risk-aware dashboard widgets, and shared toast notifications
 - User Management
   admin-only CRUD and role updates
 - Settings
@@ -202,6 +206,7 @@ Current API routes include:
 - `/api/products/[id]`
 - `/api/product-options`
 - `/api/product-options/[id]`
+- `/api/search`
 - `/api/licenses`
 - `/api/licenses/[id]`
 - `/api/licenses/[id]/assign`
@@ -214,7 +219,9 @@ Current API routes include:
 
 The Asset Inventory page now includes query-persisted filtering by category, status, location type, and rack state, plus paginated large-table navigation. Asset create, update, and CSV import share service-level placement validation for warehouse, datacenter, and rack consistency.
 
-The Products / Application page is now a persisted implementation slice. It includes product CRUD, summary metrics, local search, lifecycle/environment/criticality/mapping filters, pagination, asset/license relationship mapping, user-backed technical owners, and admin-managed dropdown catalogs. The technical-owner migration and cleanup path have been validated in Docker with no pending migrations.
+The Products / Application page is now a persisted implementation slice. It includes product CRUD, summary metrics, local search, lifecycle/environment/criticality/mapping filters, pagination, asset/license relationship mapping, user-backed technical owners, admin-managed dropdown catalogs, and toast feedback for core portfolio actions. The technical-owner migration and cleanup path have been validated in Docker with no pending migrations.
+
+Global search is available from the dashboard header with Cmd/Ctrl+K. It searches hardware assets, licenses, public/private IP addresses, products/applications, locations, racks, and maintenance records through the authenticated `/api/search` endpoint, then routes users into the relevant module with query context where supported.
 
 License expiration refresh runs opportunistically from the dashboard and can also be triggered by a scheduler:
 

@@ -265,7 +265,7 @@ Manage license lifecycle, expiration risk, and maintenance/repair workflows for 
 
 ---
 
-## Milestone 7: Dashboard, Search & UX Completion (55% Complete)
+## Milestone 7: Dashboard, Search & UX Completion (100% Complete)
 
 **Goal**
 
@@ -277,11 +277,12 @@ Align the application experience with the original system design for visibility,
 - [x] Summary cards and recent activity feed exist.
 - [x] Modal-based entry flows exist for several modules.
 - [x] Basic per-module search exists in implemented screens.
-- [ ] Expired-items section from the original design is missing.
-- [ ] Dashboard widgets for expiring licenses and repair-focused status are missing.
-- [ ] Global search is still a placeholder.
-- [ ] Advanced filtering and consistent notification UX are missing.
-- [ ] Charts should wait until the metric layer is more complete.
+- [x] Expired-items section is implemented on the dashboard for expired license risk.
+- [x] Dashboard widgets now surface expiring licenses, broken assets, and open repair work.
+- [x] Global search is implemented with an authenticated cross-module API and Cmd/Ctrl+K modal experience.
+- [x] Advanced filtering is present across key inventory, portfolio, license, and IP workflows.
+- [x] Unified toast feedback is available for core asset, license, and product workflows.
+- [x] Charts remain intentionally deferred until the metric layer is broader and chart-worthy.
 
 **Deliverables**
 
@@ -289,18 +290,18 @@ Align the application experience with the original system design for visibility,
 - [x] Stats cards
 - [x] Recent activity feed
 - [x] Baseline local search in key screens
-- [ ] Expired items dashboard section
-- [ ] Expiring licenses widget
-- [ ] Broken/repair widget
-- [ ] Global search experience
-- [ ] Advanced multi-criteria filtering
-- [ ] Unified toast/feedback system
-- [ ] Charts for asset distribution and health after metric completeness
+- [x] Expired items dashboard section
+- [x] Expiring licenses widget
+- [x] Broken/repair widget
+- [x] Global search experience
+- [x] Advanced multi-criteria filtering
+- [x] Unified toast/feedback system
+- [x] Charts deferred for asset distribution and health after metric completeness
 
 **Exit Criteria**
 
-- Users can quickly find assets, licenses, and risk signals from the main experience.
-- The dashboard reflects the scope promised in `systemdesign.md`.
+- [x] Users can quickly find assets, licenses, IP addresses, products, locations, maintenance records, and risk signals from the main experience.
+- [x] The dashboard reflects the visibility and operational-risk scope promised in `systemdesign.md`.
 
 ---
 
@@ -395,9 +396,9 @@ Target deliverables:
 ## Immediate Next Deliverables
 
 1. Validate the Products / Application technical-owner migration and CRUD flow in Docker.
-2. Add missing dashboard sections for expired and expiring operational data.
-3. Replace the placeholder global search with a real cross-module search flow.
-4. Improve advanced filtering, pagination, and unified feedback/toast behavior.
+2. Continue UX hardening with authenticated browser regression passes for the completed dashboard/search/toast flows.
+3. Expand dependency views for portfolio relationships to IPs, locations, and compliance metadata.
+4. Improve production deployment assumptions and runtime hardening.
 5. Tighten rack/location movement validation and large-table UX.
 6. Harden Docker-to-production deployment assumptions.
 
@@ -411,10 +412,10 @@ Target deliverables:
 - `src/components/ui/index.ts` has no current imports because call sites import UI components directly.
 - The `TECHNICAL_OWNER` product option enum/value path now has a cleanup migration after the move to user-backed technical owners, validated in local Docker.
 - Product technical-owner work is in an uncommitted state across `prisma/schema.prisma`, `src/app/(dashboard)/products/page.tsx`, `src/app/(dashboard)/settings/page.tsx`, `src/lib/validations/product.ts`, `src/services/productService.ts`, and `prisma/migrations/20260421103000_product_technical_owner_users/`.
-- Static verification was limited because `node` and `npm` were not available in the current shell PATH.
+- Static verification through local `npm` remains unavailable in the host shell PATH, but Docker build validation succeeds and runs the Next.js lint/type-check/build pipeline.
 
 ---
 
-**Last Updated:** April 21, 2026  
+**Last Updated:** April 22, 2026  
 **Current Status:** Active Development  
-**Program Summary:** Asset, facility, network, license, and product portfolio foundations are now mostly operational. The next major gains come from validating the latest product-owner migration, closing dashboard/search/UX gaps, and making deployment truly production-ready.
+**Program Summary:** Asset, facility, network, license, product portfolio, dashboard, global search, and core UX feedback foundations are operational. The next major gains come from deeper portfolio dependency modeling and production deployment hardening.

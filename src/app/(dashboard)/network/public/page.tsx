@@ -158,6 +158,8 @@ export default function PublicIPPage() {
   };
 
   useEffect(() => {
+    const initialSearch = new URLSearchParams(window.location.search).get("q");
+    if (initialSearch) setSearchQuery(initialSearch);
     void fetchInventory();
   }, []);
 

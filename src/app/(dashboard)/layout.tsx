@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getAuthTier } from "@/lib/utils";
 import { ActivityPinger } from "@/components/auth/ActivityPinger";
+import { GlobalSearch } from "@/components/layout/GlobalSearch";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   // Retrieve the server-side session using authOptions
@@ -25,9 +26,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <main className="flex-1 flex flex-col overflow-hidden">
         {/* Header / Top Nav */}
         <header className="h-16 border-b border-slate-800 flex items-center px-8 justify-between bg-[#0f1218]/50 backdrop-blur-md">
-          <div className="flex items-center bg-slate-900/50 border border-slate-700 rounded-lg px-3 py-1.5 w-96 cursor-text hover:border-slate-500 transition-colors">
-            <span className="text-slate-500 text-sm">Search (Cmd + K)</span>
-          </div>
+          <GlobalSearch />
           <div className="flex items-center gap-4">
             {/* Dynamic Auth Tier based on real user role retrieved from session */}
             <div className="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-500 text-xs font-medium border border-emerald-500/20">
