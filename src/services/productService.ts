@@ -47,6 +47,30 @@ const productInclude = {
       name: "asc" as const,
     },
   },
+  ips: {
+    select: {
+      id: true,
+      address: true,
+      isPublic: true,
+      status: true,
+      assignmentTargetType: true,
+      assignmentTargetLabel: true,
+    },
+    orderBy: {
+      address: "asc" as const,
+    },
+  },
+  locations: {
+    select: {
+      id: true,
+      name: true,
+      type: true,
+      address: true,
+    },
+    orderBy: {
+      name: "asc" as const,
+    },
+  },
 } as const;
 
 const requiredProductOptionTypes = {
@@ -85,6 +109,8 @@ const ensureRelationsExist = async (
       ProductFormValues,
       | "assetIds"
       | "licenseIds"
+      | "ipIds"
+      | "locationIds"
       | "categoryOptionId"
       | "businessDomainOptionId"
       | "supportTeamOptionId"
@@ -95,8 +121,10 @@ const ensureRelationsExist = async (
 ) => {
   const assetIds = data.assetIds || [];
   const licenseIds = data.licenseIds || [];
+  const ipIds = data.ipIds || [];
+  const locationIds = data.locationIds || [];
 
-  const [assetCount, licenseCount] = await Promise.all([
+  const [assetCount, licenseCount, ipCount, locationCount] = await Promise.all([
     prisma.asset.count({
       where: {
         id: { in: assetIds },
@@ -107,6 +135,16 @@ const ensureRelationsExist = async (
         id: { in: licenseIds },
       },
     }),
+    prisma.iPAddress.count({
+      where: {
+        id: { in: ipIds },
+      },
+    }),
+    prisma.location.count({
+      where: {
+        id: { in: locationIds },
+      },
+    }),
   ]);
 
   if (assetCount !== assetIds.length) {
@@ -115,6 +153,14 @@ const ensureRelationsExist = async (
 
   if (licenseCount !== licenseIds.length) {
     throw new Error("One or more selected licenses no longer exist.");
+  }
+
+  if (ipCount !== ipIds.length) {
+    throw new Error("One or more selected IP addresses no longer exist.");
+  }
+
+  if (locationCount !== locationIds.length) {
+    throw new Error("One or more selected locations no longer exist.");
   }
 
   for (const [fieldName, optionType] of Object.entries(requiredProductOptionTypes)) {
@@ -161,7 +207,7 @@ const ensureRelationsExist = async (
 
 export const ProductService = {
   async getProductManagerData() {
-    const [products, assets, licenses, options, technicalOwners] = await Promise.all([
+    const [products, assets, licenses, ips, locations, options, technicalOwners] = await Promise.all([
       prisma.product.findMany({
         include: productInclude,
         orderBy: [
@@ -189,6 +235,26 @@ export const ProductService = {
         },
         orderBy: { name: "asc" },
       }),
+      prisma.iPAddress.findMany({
+        select: {
+          id: true,
+          address: true,
+          isPublic: true,
+          status: true,
+          assignmentTargetType: true,
+          assignmentTargetLabel: true,
+        },
+        orderBy: { address: "asc" },
+      }),
+      prisma.location.findMany({
+        select: {
+          id: true,
+          name: true,
+          type: true,
+          address: true,
+        },
+        orderBy: { name: "asc" },
+      }),
       groupProductOptions(),
       prisma.user.findMany({
         select: {
@@ -210,7 +276,14 @@ export const ProductService = {
         if (product.lifecycle === "ACTIVE") acc.active += 1;
         if (product.lifecycle === "PLANNING") acc.planning += 1;
         if (product.criticality === "CRITICAL") acc.critical += 1;
-        if (product.assets.length === 0 && product.licenses.length === 0) acc.unmapped += 1;
+        if (
+          product.assets.length === 0 &&
+          product.licenses.length === 0 &&
+          product.ips.length === 0 &&
+          product.locations.length === 0
+        ) {
+          acc.unmapped += 1;
+        }
         return acc;
       },
       {
@@ -222,7 +295,7 @@ export const ProductService = {
       }
     );
 
-    return { products, assets, licenses, options, technicalOwners, summary };
+    return { products, assets, licenses, ips, locations, options, technicalOwners, summary };
   },
 
   async createProduct(data: ProductFormValues) {
@@ -237,6 +310,9 @@ export const ProductService = {
         lifecycle: data.lifecycle,
         criticality: data.criticality,
         documentationUrl: data.documentationUrl || null,
+        dataClassification: data.dataClassification || null,
+        complianceScope: data.complianceScope || null,
+        controlNotes: data.controlNotes || null,
         notes: data.notes || null,
         categoryOptionId: data.categoryOptionId,
         businessDomainOptionId: data.businessDomainOptionId || null,
@@ -249,6 +325,12 @@ export const ProductService = {
         licenses: {
           connect: data.licenseIds.map((id) => ({ id })),
         },
+        ips: {
+          connect: data.ipIds.map((id) => ({ id })),
+        },
+        locations: {
+          connect: data.locationIds.map((id) => ({ id })),
+        },
       },
       include: productInclude,
     });
@@ -258,6 +340,8 @@ export const ProductService = {
     if (
       data.assetIds !== undefined ||
       data.licenseIds !== undefined ||
+      data.ipIds !== undefined ||
+      data.locationIds !== undefined ||
       data.categoryOptionId !== undefined ||
       data.businessDomainOptionId !== undefined ||
       data.supportTeamOptionId !== undefined ||
@@ -274,6 +358,8 @@ export const ProductService = {
           technicalOwnerUserId: true,
           assets: { select: { id: true } },
           licenses: { select: { id: true } },
+          ips: { select: { id: true } },
+          locations: { select: { id: true } },
         },
       });
 
@@ -284,6 +370,8 @@ export const ProductService = {
       await ensureRelationsExist({
         assetIds: data.assetIds ?? currentProduct.assets.map((asset) => asset.id),
         licenseIds: data.licenseIds ?? currentProduct.licenses.map((license) => license.id),
+        ipIds: data.ipIds ?? currentProduct.ips.map((ip) => ip.id),
+        locationIds: data.locationIds ?? currentProduct.locations.map((location) => location.id),
         categoryOptionId: data.categoryOptionId ?? currentProduct.categoryOptionId,
         businessDomainOptionId:
           data.businessDomainOptionId !== undefined
@@ -311,6 +399,9 @@ export const ProductService = {
     if (data.lifecycle !== undefined) payload.lifecycle = data.lifecycle;
     if (data.criticality !== undefined) payload.criticality = data.criticality;
     if (data.documentationUrl !== undefined) payload.documentationUrl = data.documentationUrl || null;
+    if (data.dataClassification !== undefined) payload.dataClassification = data.dataClassification || null;
+    if (data.complianceScope !== undefined) payload.complianceScope = data.complianceScope || null;
+    if (data.controlNotes !== undefined) payload.controlNotes = data.controlNotes || null;
     if (data.notes !== undefined) payload.notes = data.notes || null;
     if (data.categoryOptionId !== undefined) payload.categoryOptionId = data.categoryOptionId;
     if (data.businessDomainOptionId !== undefined) payload.businessDomainOptionId = data.businessDomainOptionId || null;
@@ -325,6 +416,16 @@ export const ProductService = {
     if (data.licenseIds !== undefined) {
       payload.licenses = {
         set: data.licenseIds.map((relationId) => ({ id: relationId })),
+      };
+    }
+    if (data.ipIds !== undefined) {
+      payload.ips = {
+        set: data.ipIds.map((relationId) => ({ id: relationId })),
+      };
+    }
+    if (data.locationIds !== undefined) {
+      payload.locations = {
+        set: data.locationIds.map((relationId) => ({ id: relationId })),
       };
     }
 

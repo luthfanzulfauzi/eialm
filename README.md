@@ -20,7 +20,7 @@ Implemented well today:
 - network audit trail coverage for IP range, status, assignment, and deletion changes
 - persisted products / application portfolio CRUD
 - product option catalogs for categories, domains, support teams, and business owners
-- product relationships to assets, licenses, and user-backed technical owners
+- product relationships to assets, licenses, IP addresses, deployment locations, compliance metadata, and user-backed technical owners
 - product portfolio search, lifecycle/environment/criticality/mapping filters, and pagination
 - license CRUD, optional key/file metadata, product/asset linkage, expiry views, expiration notices, and maintenance repair workflows
 - asset CSV import/export, advanced asset filtering, pagination, and placement validation
@@ -32,7 +32,6 @@ Implemented well today:
 Still in progress:
 
 - authenticated end-to-end browser testing for dashboard/search/toast flows
-- deeper portfolio dependency views across IPs, locations, and compliance metadata
 - cross-module filtering/pagination polish beyond the core inventory and portfolio flows
 - production ingress, backup, and deployment hardening
 
@@ -64,7 +63,7 @@ The working roadmap is tracked in [milestones.md](./milestones.md).
 - Network Management
   public/private IP ranges, inventory, status transitions, assignment metadata, and audit trail coverage
 - Products / Application Portfolio
-  product/application CRUD, configurable catalogs, ownership, and asset/license relationships
+  product/application CRUD, configurable catalogs, ownership, compliance metadata, and asset/license/IP/location relationships
 - License & Maintenance
   license lifecycle tracking, asset/product relations, maintenance scheduling, broken-asset repair queue, and service history
 - Global Search & UX
@@ -225,7 +224,7 @@ Current API routes include:
 
 The Asset Inventory page now includes query-persisted filtering by category, status, location type, and rack state, plus paginated large-table navigation. Asset create, update, and CSV import share service-level placement validation for warehouse, datacenter, and rack consistency.
 
-The Products / Application page is now a persisted implementation slice. It includes product CRUD, summary metrics, local search, lifecycle/environment/criticality/mapping filters, pagination, asset/license relationship mapping, user-backed technical owners, admin-managed dropdown catalogs, and toast feedback for core portfolio actions. The technical-owner migration and cleanup path have been validated in Docker with no pending migrations.
+The Products / Application page is now a completed portfolio implementation slice. It includes product CRUD, summary metrics, local search, lifecycle/environment/criticality/mapping filters, pagination, asset/license/IP/location relationship mapping, compliance metadata, user-backed technical owners, admin-managed dropdown catalogs, and toast feedback for core portfolio actions. The technical-owner migration and cleanup path have been validated in Docker with no pending migrations.
 
 Global search is available from the dashboard header with Cmd/Ctrl+K. It searches hardware assets, licenses, public/private IP addresses, products/applications, locations, racks, and maintenance records through the authenticated `/api/search` endpoint, then routes users into the relevant module with query context where supported.
 
@@ -248,7 +247,6 @@ There are still a few production-readiness concerns to address:
 
 ## Known Gaps
 
-- Products / Application needs authenticated end-to-end browser CRUD validation and further feedback/toast polish.
 - Cross-module pagination/filter consistency and toast notifications are still pending outside the completed Asset Inventory core.
 - Richer dashboard repair widgets are still incomplete.
 - Production deployment needs ingress, backup, and operational hardening work.

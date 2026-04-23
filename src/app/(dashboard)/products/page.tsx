@@ -62,6 +62,22 @@ type LicenseOption = {
   expiryDate: string | null;
 };
 
+type IPAddressOption = {
+  id: string;
+  address: string;
+  isPublic: boolean;
+  status: string;
+  assignmentTargetType: string | null;
+  assignmentTargetLabel: string | null;
+};
+
+type LocationOption = {
+  id: string;
+  name: string;
+  type: string;
+  address: string | null;
+};
+
 type ProductRecord = {
   id: string;
   name: string;
@@ -71,6 +87,9 @@ type ProductRecord = {
   lifecycle: ProductLifecycle;
   criticality: ProductCriticality;
   documentationUrl: string | null;
+  dataClassification: string | null;
+  complianceScope: string | null;
+  controlNotes: string | null;
   notes: string | null;
   categoryOptionId: string;
   businessDomainOptionId: string | null;
@@ -84,6 +103,8 @@ type ProductRecord = {
   technicalOwnerUser: UserOption | null;
   assets: AssetOption[];
   licenses: LicenseOption[];
+  ips: IPAddressOption[];
+  locations: LocationOption[];
   createdAt: string;
   updatedAt: string;
 };
@@ -104,6 +125,9 @@ type ProductFormState = {
   lifecycle: ProductLifecycle;
   criticality: ProductCriticality;
   documentationUrl: string;
+  dataClassification: string;
+  complianceScope: string;
+  controlNotes: string;
   notes: string;
   categoryOptionId: string;
   businessDomainOptionId: string;
@@ -112,6 +136,8 @@ type ProductFormState = {
   technicalOwnerUserId: string;
   assetIds: string[];
   licenseIds: string[];
+  ipIds: string[];
+  locationIds: string[];
 };
 
 const emptyOptions: ProductOptionsByType = {
@@ -129,6 +155,9 @@ const emptyForm: ProductFormState = {
   lifecycle: "PLANNING",
   criticality: "MEDIUM",
   documentationUrl: "",
+  dataClassification: "",
+  complianceScope: "",
+  controlNotes: "",
   notes: "",
   categoryOptionId: "",
   businessDomainOptionId: "",
@@ -137,6 +166,8 @@ const emptyForm: ProductFormState = {
   technicalOwnerUserId: "",
   assetIds: [],
   licenseIds: [],
+  ipIds: [],
+  locationIds: [],
 };
 
 const lifecycleOptions: ProductLifecycle[] = ["PLANNING", "ACTIVE", "MAINTENANCE", "RETIRED"];
@@ -179,6 +210,8 @@ export default function ProductsPage() {
   const [products, setProducts] = useState<ProductRecord[]>([]);
   const [assets, setAssets] = useState<AssetOption[]>([]);
   const [licenses, setLicenses] = useState<LicenseOption[]>([]);
+  const [ips, setIps] = useState<IPAddressOption[]>([]);
+  const [locations, setLocations] = useState<LocationOption[]>([]);
   const [technicalOwners, setTechnicalOwners] = useState<UserOption[]>([]);
   const [productOptions, setProductOptions] = useState<ProductOptionsByType>(emptyOptions);
   const [summary, setSummary] = useState<ProductSummary>({
@@ -239,6 +272,8 @@ export default function ProductsPage() {
       setProducts(payload.products || []);
       setAssets(payload.assets || []);
       setLicenses(payload.licenses || []);
+      setIps(payload.ips || []);
+      setLocations(payload.locations || []);
       setTechnicalOwners(payload.technicalOwners || []);
       setProductOptions(payload.options?.byType || emptyOptions);
       setSummary(
@@ -291,7 +326,11 @@ export default function ProductsPage() {
         environmentFilter === "ALL" ? true : product.environment === environmentFilter;
       const matchesCriticality =
         criticalityFilter === "ALL" ? true : product.criticality === criticalityFilter;
-      const isMapped = product.assets.length > 0 || product.licenses.length > 0;
+      const isMapped =
+        product.assets.length > 0 ||
+        product.licenses.length > 0 ||
+        product.ips.length > 0 ||
+        product.locations.length > 0;
       const matchesMapping =
         mappingFilter === "ALL" ||
         (mappingFilter === "MAPPED" && isMapped) ||
@@ -314,6 +353,10 @@ export default function ProductsPage() {
         product.technicalOwnerUser?.name || "",
         product.technicalOwnerUser?.email || "",
         product.supportTeamOption?.value || "",
+        product.dataClassification || "",
+        product.complianceScope || "",
+        ...product.ips.map((ip) => ip.address),
+        ...product.locations.map((location) => location.name),
       ]
         .join(" ")
         .toLowerCase();
@@ -360,6 +403,9 @@ export default function ProductsPage() {
       lifecycle: product.lifecycle,
       criticality: product.criticality,
       documentationUrl: product.documentationUrl || "",
+      dataClassification: product.dataClassification || "",
+      complianceScope: product.complianceScope || "",
+      controlNotes: product.controlNotes || "",
       notes: product.notes || "",
       categoryOptionId: product.categoryOptionId,
       businessDomainOptionId: product.businessDomainOptionId || "",
@@ -368,6 +414,8 @@ export default function ProductsPage() {
       technicalOwnerUserId: product.technicalOwnerUserId || "",
       assetIds: product.assets.map((asset) => asset.id),
       licenseIds: product.licenses.map((license) => license.id),
+      ipIds: product.ips.map((ip) => ip.id),
+      locationIds: product.locations.map((location) => location.id),
     });
     setTechnicalOwnerSearch(product.technicalOwnerUser?.name || "");
     setIsTechnicalOwnerDropdownOpen(false);
@@ -502,6 +550,9 @@ export default function ProductsPage() {
         lifecycle: form.lifecycle,
         criticality: form.criticality,
         documentationUrl: form.documentationUrl.trim() || null,
+        dataClassification: form.dataClassification.trim() || null,
+        complianceScope: form.complianceScope.trim() || null,
+        controlNotes: form.controlNotes.trim() || null,
         notes: form.notes.trim() || null,
         categoryOptionId,
         businessDomainOptionId: form.businessDomainOptionId || null,
@@ -509,6 +560,8 @@ export default function ProductsPage() {
         businessOwnerOptionId,
         assetIds: form.assetIds,
         licenseIds: form.licenseIds,
+        ipIds: form.ipIds,
+        locationIds: form.locationIds,
       };
 
       if (technicalOwnerUserId) {
@@ -711,7 +764,7 @@ export default function ProductsPage() {
               <h1 className="text-3xl font-bold tracking-tight text-white">Products / Application Portfolio</h1>
               <p className="mt-2 text-sm leading-6 text-slate-300">
                 Manage business-facing products as first-class records, then map them to the assets,
-                licenses, and centrally managed ownership and classification lists in EIALM.
+                licenses, IPs, locations, compliance metadata, and centrally managed ownership lists in EIALM.
               </p>
             </div>
           </div>
@@ -807,7 +860,7 @@ export default function ProductsPage() {
               className="flex h-10 rounded-lg border border-slate-800 bg-slate-900/50 px-3 py-2 text-sm text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:border-blue-500 transition-all"
             >
               <option value="ALL">All mapping states</option>
-              <option value="MAPPED">Mapped to assets/licenses</option>
+              <option value="MAPPED">Mapped dependencies</option>
               <option value="UNMAPPED">Unmapped</option>
             </select>
           </div>
@@ -896,6 +949,14 @@ export default function ProductsPage() {
                       <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Technical Owner</div>
                       <div className="mt-2 text-sm font-medium text-white">{product.technicalOwnerUser?.name || "Unassigned"}</div>
                     </div>
+                    <div className="rounded-2xl border border-slate-800 bg-slate-900/40 px-4 py-3">
+                      <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Data Classification</div>
+                      <div className="mt-2 text-sm font-medium text-white">{product.dataClassification || "Not set"}</div>
+                    </div>
+                    <div className="rounded-2xl border border-slate-800 bg-slate-900/40 px-4 py-3">
+                      <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Compliance Scope</div>
+                      <div className="mt-2 text-sm font-medium text-white">{product.complianceScope || "Not set"}</div>
+                    </div>
                   </div>
                 </div>
 
@@ -917,7 +978,7 @@ export default function ProductsPage() {
                 )}
               </div>
 
-              <div className="mt-6 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+              <div className="mt-6 grid gap-4 xl:grid-cols-2">
                 <section className="rounded-2xl border border-slate-800 bg-slate-900/30 p-5">
                   <div className="mb-4 flex items-center justify-between">
                     <h3 className="text-sm font-bold text-white">Linked Assets</h3>
@@ -964,6 +1025,55 @@ export default function ProductsPage() {
                     )}
                   </div>
                 </section>
+
+                <section className="rounded-2xl border border-slate-800 bg-slate-900/30 p-5">
+                  <div className="mb-4 flex items-center justify-between">
+                    <h3 className="text-sm font-bold text-white">Linked IPs</h3>
+                    <span className="text-xs text-slate-500">{product.ips.length} mapped</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {product.ips.length > 0 ? (
+                      product.ips.map((ip) => (
+                        <span
+                          key={ip.id}
+                          className="rounded-full border border-cyan-500/20 bg-cyan-500/10 px-3 py-1 text-xs text-cyan-100"
+                        >
+                          {ip.address} · {ip.isPublic ? "Public" : "Private"} · {formatEnum(ip.status)}
+                        </span>
+                      ))
+                    ) : (
+                      <p className="text-sm text-slate-500">No IP addresses linked yet.</p>
+                    )}
+                  </div>
+                </section>
+
+                <section className="rounded-2xl border border-slate-800 bg-slate-900/30 p-5">
+                  <div className="mb-4 flex items-center justify-between">
+                    <h3 className="text-sm font-bold text-white">Locations</h3>
+                    <span className="text-xs text-slate-500">{product.locations.length} mapped</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {product.locations.length > 0 ? (
+                      product.locations.map((location) => (
+                        <span
+                          key={location.id}
+                          className="rounded-full border border-violet-500/20 bg-violet-500/10 px-3 py-1 text-xs text-violet-100"
+                        >
+                          {location.name} · {formatEnum(location.type)}
+                        </span>
+                      ))
+                    ) : (
+                      <p className="text-sm text-slate-500">No deployment locations linked yet.</p>
+                    )}
+                  </div>
+                </section>
+
+                {product.controlNotes ? (
+                  <section className="rounded-2xl border border-slate-800 bg-slate-900/30 p-5 xl:col-span-2">
+                    <h3 className="text-sm font-bold text-white">Control Notes</h3>
+                    <p className="mt-3 text-sm leading-6 text-slate-400">{product.controlNotes}</p>
+                  </section>
+                ) : null}
               </div>
             </article>
           ))
@@ -1113,6 +1223,24 @@ export default function ProductsPage() {
               />
             </div>
 
+            <div className="space-y-2">
+              <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">Data Classification</div>
+              <Input
+                value={form.dataClassification}
+                onChange={(e) => setForm((current) => ({ ...current, dataClassification: e.target.value }))}
+                placeholder="Internal, Confidential, Restricted"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">Compliance Scope</div>
+              <Input
+                value={form.complianceScope}
+                onChange={(e) => setForm((current) => ({ ...current, complianceScope: e.target.value }))}
+                placeholder="ISO 27001, PCI DSS, SOX"
+              />
+            </div>
+
             <div className="space-y-2 md:col-span-2">
               <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">Description</div>
               <textarea
@@ -1121,6 +1249,17 @@ export default function ProductsPage() {
                 rows={3}
                 className="flex w-full rounded-lg border border-slate-800 bg-slate-900/50 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:border-blue-500 transition-all"
                 placeholder="What this product/application does and who it serves"
+              />
+            </div>
+
+            <div className="space-y-2 md:col-span-2">
+              <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">Control Notes</div>
+              <textarea
+                value={form.controlNotes}
+                onChange={(e) => setForm((current) => ({ ...current, controlNotes: e.target.value }))}
+                rows={3}
+                className="flex w-full rounded-lg border border-slate-800 bg-slate-900/50 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:border-blue-500 transition-all"
+                placeholder="Key controls, audit notes, or compliance evidence references"
               />
             </div>
           </div>
@@ -1200,6 +1339,82 @@ export default function ProductsPage() {
                   ))
                 ) : (
                   <p className="text-sm text-slate-500">No licenses available for linking yet.</p>
+                )}
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-slate-800 bg-slate-900/30 p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <h4 className="text-sm font-bold text-white">Related IP Addresses</h4>
+                <span className="text-xs text-slate-500">{form.ipIds.length} selected</span>
+              </div>
+              <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
+                {ips.length > 0 ? (
+                  ips.map((ip) => (
+                    <label
+                      key={ip.id}
+                      className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-3 py-3 text-sm text-slate-300"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={form.ipIds.includes(ip.id)}
+                        onChange={() =>
+                          setForm((current) => ({
+                            ...current,
+                            ipIds: toggleRelation(current.ipIds, ip.id),
+                          }))
+                        }
+                        className="mt-1"
+                      />
+                      <div>
+                        <div className="font-medium text-white">{ip.address}</div>
+                        <div className="text-xs text-slate-500">
+                          {ip.isPublic ? "Public" : "Private"} · {formatEnum(ip.status)}
+                          {ip.assignmentTargetLabel ? ` · ${ip.assignmentTargetLabel}` : ""}
+                        </div>
+                      </div>
+                    </label>
+                  ))
+                ) : (
+                  <p className="text-sm text-slate-500">No IP addresses available for linking yet.</p>
+                )}
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-slate-800 bg-slate-900/30 p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <h4 className="text-sm font-bold text-white">Deployment Locations</h4>
+                <span className="text-xs text-slate-500">{form.locationIds.length} selected</span>
+              </div>
+              <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
+                {locations.length > 0 ? (
+                  locations.map((location) => (
+                    <label
+                      key={location.id}
+                      className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-3 py-3 text-sm text-slate-300"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={form.locationIds.includes(location.id)}
+                        onChange={() =>
+                          setForm((current) => ({
+                            ...current,
+                            locationIds: toggleRelation(current.locationIds, location.id),
+                          }))
+                        }
+                        className="mt-1"
+                      />
+                      <div>
+                        <div className="font-medium text-white">{location.name}</div>
+                        <div className="text-xs text-slate-500">
+                          {formatEnum(location.type)}
+                          {location.address ? ` · ${location.address}` : ""}
+                        </div>
+                      </div>
+                    </label>
+                  ))
+                ) : (
+                  <p className="text-sm text-slate-500">No locations available for linking yet.</p>
                 )}
               </div>
             </section>

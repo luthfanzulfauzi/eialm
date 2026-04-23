@@ -191,7 +191,7 @@ Manage public and private address inventory, assignment, reservation, and operat
 
 ---
 
-## Milestone 5: Products & Application Portfolio (80% Complete)
+## Milestone 5: Products & Application Portfolio (100% Complete)
 
 **Goal**
 
@@ -208,8 +208,10 @@ Add a dedicated portfolio layer for managing business products and applications,
 - [x] Technical ownership has moved from a product-option catalog to a user-backed relation.
 - [x] The product technical-owner migration and cleanup path have been validated in Docker with no pending migrations.
 - [x] Portfolio UX now includes local search, lifecycle, environment, criticality, mapping-state filters, page-size controls, and pagination.
-- [ ] Optional relation mapping to IPs, locations, compliance metadata, and operational dependency views is still missing.
-- [ ] Portfolio UX still needs consistent feedback/toast behavior and deeper dependency views.
+- [x] Products can now map optional IP addresses and deployment locations alongside assets and licenses.
+- [x] Portfolio records now carry compliance metadata for data classification, compliance scope, and control notes.
+- [x] Portfolio dependency views now expose linked assets, licenses, IPs, locations, and compliance context.
+- [x] Portfolio UX uses shared toast feedback for create, update, delete, and dropdown catalog actions.
 
 **Deliverables**
 
@@ -221,16 +223,17 @@ Add a dedicated portfolio layer for managing business products and applications,
 - [x] Admin-managed option catalogs for portfolio dropdown values
 - [x] Migration validation and technical-owner cleanup review in Docker
 - [x] Portfolio pagination and advanced filtering
-- [ ] Optional relation mapping to IPs, locations, and compliance metadata
-- [ ] Polished notification/toast UX
+- [x] Optional relation mapping to IPs, locations, and compliance metadata
+- [x] Portfolio dependency views across assets, licenses, IPs, locations, and compliance context
+- [x] Polished notification/toast UX for portfolio workflows
 
 **Exit Criteria**
 
 - [x] The platform can store and manage product/application portfolio records as first-class entities.
-- [x] Products/applications can be linked to relevant infrastructure, license, and ownership data without duplicating existing records.
+- [x] Products/applications can be linked to relevant infrastructure, license, IP, location, and ownership data without duplicating existing records.
 - [x] Product ownership migration and protected portfolio page availability are validated in Docker/deployed mode.
 - [x] Portfolio views remain usable as data volume grows through filtering and pagination.
-- Portfolio workflows still need authenticated browser CRUD validation and polished feedback behavior.
+- [x] Portfolio workflows provide shared feedback behavior and dependency mapping for operational ownership reviews.
 
 ---
 
@@ -397,12 +400,11 @@ Target deliverables:
 
 ## Immediate Next Deliverables
 
-1. Validate the Products / Application technical-owner migration and CRUD flow in Docker.
+1. Validate the completed Products / Application dependency-mapping migration and CRUD flow in Docker.
 2. Continue UX hardening with authenticated browser regression passes for the completed dashboard/search/toast flows.
-3. Expand dependency views for portfolio relationships to IPs, locations, and compliance metadata.
-4. Improve production deployment assumptions and runtime hardening.
-5. Tighten rack/location movement validation and large-table UX.
-6. Harden Docker-to-production deployment assumptions.
+3. Improve production deployment assumptions and runtime hardening.
+4. Tighten rack/location movement validation and large-table UX.
+5. Harden Docker-to-production deployment assumptions.
 
 ---
 
@@ -414,11 +416,11 @@ Target deliverables:
 - `src/hooks/useDebounce.ts` has no current imports.
 - `src/components/ui/index.ts` has no current imports because call sites import UI components directly.
 - The `TECHNICAL_OWNER` product option enum/value path now has a cleanup migration after the move to user-backed technical owners, validated in local Docker.
-- Product technical-owner work is in an uncommitted state across `prisma/schema.prisma`, `src/app/(dashboard)/products/page.tsx`, `src/app/(dashboard)/settings/page.tsx`, `src/lib/validations/product.ts`, `src/services/productService.ts`, and `prisma/migrations/20260421103000_product_technical_owner_users/`.
+- Product portfolio dependency mapping adds optional IP/location relations and compliance metadata through `prisma/migrations/20260423100000_product_dependency_mapping/`.
 - Static verification through local `npm` remains unavailable in the host shell PATH, but Docker build validation succeeds and runs the Next.js lint/type-check/build pipeline.
 
 ---
 
 **Last Updated:** April 23, 2026
 **Current Status:** Active Development
-**Program Summary:** Asset, facility, network, license, product portfolio, dashboard, global search, and core UX feedback foundations are operational. The next major gains come from deeper portfolio dependency modeling and production deployment hardening.
+**Program Summary:** Asset, facility, network, license, product portfolio, dashboard, global search, and core UX feedback foundations are operational. The next major gains come from production deployment hardening, authenticated browser regression coverage, and larger-data UX refinement.

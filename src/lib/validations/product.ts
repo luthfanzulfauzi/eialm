@@ -61,6 +61,9 @@ export const productSchema = z.object({
   lifecycle: z.nativeEnum(ProductLifecycle),
   criticality: z.nativeEnum(ProductCriticality),
   documentationUrl: optionalUrl,
+  dataClassification: optionalTrimmedString,
+  complianceScope: optionalTrimmedString,
+  controlNotes: optionalTrimmedString,
   notes: optionalTrimmedString,
   categoryOptionId: z.string().trim().min(1, "Category is required."),
   businessDomainOptionId: optionalTrimmedString,
@@ -69,6 +72,8 @@ export const productSchema = z.object({
   technicalOwnerUserId: z.string().trim().min(1, "Technical owner is required."),
   assetIds: relationIdList,
   licenseIds: relationIdList,
+  ipIds: relationIdList,
+  locationIds: relationIdList,
 });
 
 export const productUpdateSchema = productSchema.partial().refine((data) => {

@@ -121,6 +121,7 @@ model Location {
   
   racks     Rack[]
   assets    Asset[]      // Assets directly in a warehouse/DC (not in a rack)
+  products  Product[]
   createdAt DateTime     @default(now())
 }
 
@@ -239,6 +240,7 @@ model IPAddress {
   privateRange   PrivateIPRange? @relation(fields: [privateRangeId], references: [id], onDelete: SetNull)
   assetId   String?
   asset     Asset?   @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  products  Product[]
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -269,6 +271,9 @@ model Product {
   lifecycle        ProductLifecycle    @default(PLANNING)
   criticality      ProductCriticality  @default(MEDIUM)
   documentationUrl String?
+  dataClassification String?
+  complianceScope    String?
+  controlNotes       String?
   notes            String?
 
   categoryOptionId       String
@@ -284,11 +289,14 @@ model Product {
 
   assets           Asset[]
   licenses         License[]
+  ips              IPAddress[]
+  locations        Location[]
 
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
 
   @@index([name])
+  @@index([environment])
   @@index([lifecycle])
   @@index([criticality])
 }

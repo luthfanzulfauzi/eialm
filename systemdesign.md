@@ -12,7 +12,7 @@ Last reviewed against the repository on April 23, 2026.
 - Asset hardware CRUD, audit trail, CSV import/export, advanced asset filtering, pagination, placement validation, datacenter/warehouse CRUD, rack CRUD, warehouse storage views, rack utilization summaries, and cross-facility rack layout placement flows are implemented.
 - Public and private IP inventory management are implemented, including ranges, generated IP inventory, status transitions, assignment target metadata, and audit logging for network mutations.
 - License CRUD, assignment, expiry views, scheduled expiration refresh/notifications, maintenance scheduling, maintenance history, and broken-asset repair workflows are implemented.
-- Products / Application is now a persisted module with product CRUD, configurable option catalogs, asset/license relationships, business owners, user-backed technical owners, advanced local filtering, pagination, and toast feedback. The latest technical-owner migration and cleanup path have been validated in Docker.
+- Products / Application is now a persisted module with product CRUD, configurable option catalogs, asset/license/IP/location relationships, compliance metadata, business owners, user-backed technical owners, advanced local filtering, pagination, dependency views, and toast feedback. The latest portfolio migrations have been validated in Docker.
 - Global search is implemented from the dashboard header with an authenticated cross-module API covering assets, licenses, IP addresses, products/applications, locations, racks, and maintenance records.
 - Settings includes password change, login timeout, and product dropdown catalog management.
 - Docker development/build support exists, uses a named PostgreSQL volume for runtime data, and no longer depends on external font fetching, but production ingress, Cloudflare Tunnel or reverse proxy setup, backup, observability, and runbooks remain pending.
@@ -119,7 +119,7 @@ prisma/
 - `License`: optional key/file, expiry state, asset assignment, and product relationships.
 - `MaintenanceRecord`: scheduled maintenance and repair history for assets with status, priority, lifecycle timestamps, and resolution notes.
 - `SystemJobRun` and `OperationalNotification`: lightweight operational job state and in-app risk notices for scheduled lifecycle checks.
-- `Product`: portfolio record with environment, lifecycle, criticality, documentation, notes, option-backed category/domain/team/business owner, user-backed technical owner, assets, and licenses.
+- `Product`: portfolio record with environment, lifecycle, criticality, documentation, compliance metadata, notes, option-backed category/domain/team/business owner, user-backed technical owner, assets, licenses, IP addresses, and deployment locations.
 - `ProductOption`: configurable dropdown catalog for product categories, business domains, support teams, and business owners.
 - `AuditLog`: asset, network, and platform activity records.
 
@@ -127,6 +127,5 @@ prisma/
 
 - Charts for asset distribution and health remain deferred until the dashboard metric layer is broader.
 - Unified toast notifications exist for core workflows and should continue replacing legacy inline banners or browser alerts as modules are revisited.
-- Product portfolio should eventually relate to IPs, locations, compliance metadata, and operational dependency views.
 - Production design still needs ingress options for direct DNS or Cloudflare Tunnel, backup/restore, health checks, observability, and security hardening.
 - Runtime data is kept out of source control through Git ignores, Docker ignores, and named Compose volumes.
