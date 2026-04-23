@@ -19,6 +19,7 @@ next-env.d.ts
 pgdata/
 docker-volumes/
 postgres-data/
+backups/
 *.db
 *.db-journal
 

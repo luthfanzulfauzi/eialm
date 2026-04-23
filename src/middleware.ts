@@ -98,6 +98,7 @@ export default withAuth(
 /** * Matcher configuration:
  * We protect everything EXCEPT the login page, standard API auth routes,
  * cron-safe operational endpoints,
+ * public health probes,
  * and static Next.js assets. 
  */
 export const config = {
@@ -106,11 +107,12 @@ export const config = {
      * Match all request paths except for the ones starting with:
      * - api/auth (NextAuth endpoints)
      * - api/licenses/expiration-refresh (cron endpoint with its own secret/session auth)
+     * - api/health (public container/load-balancer health check)
      * - login (Our custom login page)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico, images, public assets
      */
-    "/((?!api/auth|api/licenses/expiration-refresh|login|_next/static|_next/image|favicon.ico|public|avatars).*)",
+    "/((?!api/auth|api/licenses/expiration-refresh|api/health|login|_next/static|_next/image|favicon.ico|public|avatars).*)",
   ],
 };

@@ -33,7 +33,7 @@ Still in progress:
 
 - authenticated end-to-end browser testing for dashboard/search/toast flows
 - cross-module filtering/pagination polish beyond the core inventory and portfolio flows
-- production ingress, backup, and deployment hardening
+- production security review, TLS/certificate automation, and deployment validation
 
 The working roadmap is tracked in [milestones.md](./milestones.md).
 
@@ -143,6 +143,44 @@ docker compose up --build
 The container startup runs Prisma migrations and verifies the seed admin account automatically.
 Compose stores PostgreSQL data in the named Docker volume `eialm_postgres-data`; it does not write runtime database files into the repository.
 
+## Production Compose Path
+
+The default Compose stack runs PostgreSQL and the Next.js app directly on port `3000`. For a direct DNS or reverse-proxy deployment path, start the optional Nginx profile:
+
+```bash
+docker compose --profile proxy up -d --build
+```
+
+Nginx listens on `HTTP_PORT` and `HTTPS_PORT` from `.env` and forwards traffic to the app container. The included default config serves HTTP and exposes `/health`; mount certificates through `TLS_CERTS_DIR` and update `deploy/nginx/conf.d/eialm.conf` when terminating TLS inside Nginx.
+
+For Cloudflare Tunnel deployments, keep the app internal and point `cloudflared` at `http://app:3000`. A starter ingress file is available at `deploy/cloudflare-tunnel.example.yml`.
+
+## Health Checks
+
+The app exposes an unauthenticated health endpoint:
+
+```bash
+curl http://localhost:3000/api/health
+```
+
+The endpoint verifies database connectivity and returns `503` when PostgreSQL is unavailable. Docker Compose uses this endpoint for the app healthcheck, and the Nginx profile maps it to `/health` for load balancers or uptime checks.
+
+## Backup And Restore
+
+PostgreSQL runtime data is stored in the named Compose volume `postgres-data`. Create logical backups with:
+
+```bash
+./scripts/backup-postgres.sh
+```
+
+Backups are written to `./backups` by default and are ignored by Git. Restore a backup into the running database service with:
+
+```bash
+./scripts/restore-postgres.sh ./backups/eialm-eialm_db-YYYYMMDD-HHMMSS.dump
+```
+
+For production, copy backup files to storage outside the Docker host, protect them as sensitive data, and test restore into a non-production environment before relying on the procedure.
+
 ## Default Admin Account
 
 The Prisma seed script creates or verifies an admin user using these environment variables:
@@ -239,17 +277,30 @@ curl -X POST http://localhost:3000/api/licenses/expiration-refresh \
 
 The Docker app image has been verified to build successfully in the containerized path, and the compose runtime starts with Prisma reporting no pending migrations.
 
+Current production-readiness coverage includes:
+
+- standalone Docker image build
+- container startup migrations and seed verification
+- app/database healthcheck endpoint
+- optional Nginx reverse proxy profile
+- starter Cloudflare Tunnel ingress example
+- PostgreSQL backup and restore scripts
+- committed ESLint configuration for non-interactive lint validation
+- Next.js patched to the current 14.x security release recommended by the December 2025 App Router advisory
+
 There are still a few production-readiness concerns to address:
 
-- some server-rendered paths currently assume database reachability during build optimization
-- reverse proxy / Cloudflare Tunnel deployment is not implemented yet
-- backup, observability, and security hardening are still pending
+- TLS certificate automation and final hostname-specific Nginx config
+- production backup scheduling, off-host retention, and restore drill validation
+- log/metrics shipping beyond Docker healthchecks
+- dependency security review for remaining advisories that require breaking framework/auth upgrades
+- final deployment validation pass on the production hostname
 
 ## Known Gaps
 
 - Cross-module pagination/filter consistency and toast notifications are still pending outside the completed Asset Inventory core.
 - Richer dashboard repair widgets are still incomplete.
-- Production deployment needs ingress, backup, and operational hardening work.
+- Production deployment needs security review, observability expansion, and real-host validation.
 - `src/hooks/useDebounce.ts` and `src/components/ui/index.ts` appear unused in the current source tree.
 - The old `TECHNICAL_OWNER` product option path has a cleanup migration and was validated in local Docker.
 

@@ -1,0 +1,7 @@
+tunnel: eialm
+credentials-file: /etc/cloudflared/eialm.json
+
+ingress:
+  - hostname: eialm.example.com
+    service: http://app:3000
+  - service: http_status:404

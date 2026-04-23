@@ -5,6 +5,8 @@ import { getAuthTier } from "@/lib/utils";
 import { ActivityPinger } from "@/components/auth/ActivityPinger";
 import { GlobalSearch } from "@/components/layout/GlobalSearch";
 
+export const dynamic = "force-dynamic";
+
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   // Retrieve the server-side session using authOptions
   const session = await getServerSession(authOptions);

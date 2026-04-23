@@ -310,7 +310,7 @@ Align the application experience with the original system design for visibility,
 
 ---
 
-## Milestone 8: Deployment & Production Readiness (40% Complete)
+## Milestone 8: Deployment & Production Readiness (65% Complete)
 
 **Goal**
 
@@ -320,23 +320,32 @@ Move from containerized development readiness to production-safe deployment and 
 
 - [x] Docker build succeeds.
 - [x] Prisma migrations run on container startup.
-- [ ] Reverse proxy and direct DNS deployment path are not implemented.
-- [ ] Cloudflare Tunnel path is not implemented.
-- [ ] Backup, observability, and runbooks are missing.
+- [x] Optional Nginx reverse proxy profile exists for direct DNS or upstream proxy deployment.
+- [x] Cloudflare Tunnel starter ingress config is documented.
+- [x] PostgreSQL backup and restore helpers exist.
+- [x] App and proxy healthchecks are implemented through a public database-backed health endpoint.
+- [x] Lint validation is now non-interactive through committed ESLint configuration.
+- [x] Next.js has been patched from `14.1.0` to the fixed `14.2.x` line for the December 2025 App Router advisory.
+- [ ] Production backup scheduling, off-host retention, and restore-drill evidence are still pending.
+- [ ] Log/metrics observability beyond Docker healthchecks is still pending.
 - [x] Build-time dependence on Google Fonts fetching has been removed.
-- [ ] Some server-rendered build paths still assume database reachability.
+- [x] Authenticated dashboard server rendering is explicitly dynamic to avoid static build assumptions around database-backed pages.
+- [ ] Production security review and hostname/TLS validation pass are still pending.
 
 **Deliverables**
 
 - [x] Container build verification
 - [x] Compose-based startup
-- [ ] Nginx or equivalent reverse proxy configuration
-- [ ] Optional Cloudflare Tunnel deployment path
-- [ ] Production-ready persistent volume and storage strategy
-- [ ] Backup and restore procedure
-- [ ] Health checks and observability setup
+- [x] Nginx or equivalent reverse proxy configuration
+- [x] Optional Cloudflare Tunnel deployment path
+- [x] Production-ready persistent volume and storage strategy
+- [x] Backup and restore procedure
+- [x] Health checks
+- [ ] Observability setup for logs and metrics
 - [x] Build hardening against external font fetch dependency
-- [ ] Build/runtime hardening against unavailable database during static optimization
+- [x] Build/runtime hardening against unavailable database during static optimization
+- [x] Non-interactive lint configuration
+- [x] Next.js 14.x security patch update
 - [ ] Security review and production validation pass
 
 **Exit Criteria**
@@ -402,7 +411,7 @@ Target deliverables:
 
 1. Validate the completed Products / Application dependency-mapping migration and CRUD flow in Docker.
 2. Continue UX hardening with authenticated browser regression passes for the completed dashboard/search/toast flows.
-3. Improve production deployment assumptions and runtime hardening.
+3. Validate the production deployment profile on a real hostname with TLS.
 4. Tighten rack/location movement validation and large-table UX.
 5. Harden Docker-to-production deployment assumptions.
 
@@ -418,6 +427,9 @@ Target deliverables:
 - The `TECHNICAL_OWNER` product option enum/value path now has a cleanup migration after the move to user-backed technical owners, validated in local Docker.
 - Product portfolio dependency mapping adds optional IP/location relations and compliance metadata through `prisma/migrations/20260423100000_product_dependency_mapping/`.
 - Static verification through local `npm` remains unavailable in the host shell PATH, but Docker build validation succeeds and runs the Next.js lint/type-check/build pipeline.
+- Milestone 8 now includes an unauthenticated `/api/health` endpoint, Compose healthchecks, optional Nginx proxy profile, Cloudflare Tunnel starter config, and PostgreSQL backup/restore helpers.
+- `npm run lint` now works non-interactively in Docker. Current lint output has three pre-existing React hook dependency warnings in asset/rack pages.
+- Production dependency audit improved after the Next.js 14.x patch, but still reports advisories requiring breaking Next.js/NextAuth upgrades.
 
 ---
 
