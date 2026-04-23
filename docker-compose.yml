@@ -5,12 +5,11 @@ services:
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-admin}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password123}
-      POSTGRES_DB: eialm_db
+      POSTGRES_DB: ${POSTGRES_DB:-eialm_db}
     volumes:
-      # This saves the DB data to a folder named 'pgdata' in your project root
-      - ./pgdata:/var/lib/postgresql/data
+      - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U admin -d eialm_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-admin} -d ${POSTGRES_DB:-eialm_db}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -23,13 +22,16 @@ services:
     ports:
       - "3000:3000"
     environment:
-      DATABASE_URL: postgresql://admin:password123@db:5432/eialm_db?schema=public
+      DATABASE_URL: postgresql://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-password123}@db:5432/${POSTGRES_DB:-eialm_db}?schema=public
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
       NEXTAUTH_URL: ${NEXTAUTH_URL}
       CRON_SECRET: ${CRON_SECRET:-}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@eialm.internal}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
       NODE_ENV: production
     depends_on:
       db:
         condition: service_healthy
 
-# Removed the global 'volumes' section as we are now using bind mounts
+volumes:
+  postgres-data:

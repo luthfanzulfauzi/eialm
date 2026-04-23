@@ -4,7 +4,7 @@ Enterprise Infrastructure & Asset Lifecycle Manager (EIALM) is an internal web a
 
 ## Current Implementation Status
 
-Last reviewed against the repository on April 22, 2026.
+Last reviewed against the repository on April 23, 2026.
 
 - Next.js 14 App Router, TypeScript, Tailwind CSS, Prisma, PostgreSQL, NextAuth.js, Zustand, React Hook Form, Zod, Docker, and Docker Compose are in use.
 - Authentication, RBAC, user management, password change, login timeout, and protected API/page access are implemented.
@@ -15,7 +15,7 @@ Last reviewed against the repository on April 22, 2026.
 - Products / Application is now a persisted module with product CRUD, configurable option catalogs, asset/license relationships, business owners, user-backed technical owners, advanced local filtering, pagination, and toast feedback. The latest technical-owner migration and cleanup path have been validated in Docker.
 - Global search is implemented from the dashboard header with an authenticated cross-module API covering assets, licenses, IP addresses, products/applications, locations, racks, and maintenance records.
 - Settings includes password change, login timeout, and product dropdown catalog management.
-- Docker development/build support exists and no longer depends on external font fetching, but production ingress, Cloudflare Tunnel or reverse proxy setup, backup, observability, and runbooks remain pending.
+- Docker development/build support exists, uses a named PostgreSQL volume for runtime data, and no longer depends on external font fetching, but production ingress, Cloudflare Tunnel or reverse proxy setup, backup, observability, and runbooks remain pending.
 
 ## Product Goal
 
@@ -129,4 +129,4 @@ prisma/
 - Unified toast notifications exist for core workflows and should continue replacing legacy inline banners or browser alerts as modules are revisited.
 - Product portfolio should eventually relate to IPs, locations, compliance metadata, and operational dependency views.
 - Production design still needs ingress options for direct DNS or Cloudflare Tunnel, backup/restore, health checks, observability, and security hardening.
-- Repository cleanup should remove confirmed-unneeded tracked backup files and keep runtime data out of source control.
+- Runtime data is kept out of source control through Git ignores, Docker ignores, and named Compose volumes.

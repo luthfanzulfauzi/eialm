@@ -15,7 +15,7 @@ Percentages represent implementation maturity in the codebase today, not the fin
 
 ---
 
-## Milestone 1: Foundation & Core Architecture (90% Complete)
+## Milestone 1: Foundation & Core Architecture (100% Complete)
 
 **Goal**
 
@@ -27,7 +27,9 @@ Provide a stable technical base for application development, schema evolution, a
 - [x] TypeScript, Tailwind CSS, Prisma, and PostgreSQL are configured.
 - [x] Core schema exists for users, assets, locations, racks, IPs, licenses, public IP ranges, and audit logs.
 - [x] Dockerfile and `docker-compose.yml` are present and the app container build succeeds.
-- [ ] Repository/runtime boundaries are still mixed with checked-in runtime data and local environment assumptions.
+- [x] Runtime database storage now uses a named Docker volume instead of a repository-root bind mount.
+- [x] Development, container, and production environment boundaries are documented in `.env.example` and `README.md`.
+- [x] Residual tracked backup artifacts have been removed from `src/`.
 
 **Deliverables**
 
@@ -35,13 +37,13 @@ Provide a stable technical base for application development, schema evolution, a
 - [x] Prisma schema and migrations
 - [x] Multi-stage Docker build
 - [x] Compose-based app and database startup
-- [ ] Repository cleanup plan for `pgdata`, install artifacts, and local-only runtime files
-- [ ] Environment variable policy for development vs production
+- [x] Repository cleanup plan for `pgdata`, install artifacts, and local-only runtime files
+- [x] Environment variable policy for development vs production
 
 **Exit Criteria**
 
-- Runtime data is no longer treated as source-controlled project state.
-- Local, container, and production environment configuration are clearly separated.
+- [x] Runtime data is no longer treated as source-controlled project state.
+- [x] Local, container, and production environment configuration are clearly separated.
 
 ---
 
@@ -407,7 +409,8 @@ Target deliverables:
 ## Repository Review Notes
 
 - Runtime folders `pgdata/`, `.next/`, and `node_modules/` are present locally but ignored by Git.
-- Three backup files are still tracked and appear residual: `src/app/(dashboard)/page.tsx.backup`, `src/lib/validations/auth.ts.backup`, and `src/types/index.d.ts.backup`.
+- Docker Compose now uses the named volume `postgres-data` for PostgreSQL persistence instead of creating new database files under the repository root.
+- The residual tracked backup files under `src/` have been removed.
 - `src/hooks/useDebounce.ts` has no current imports.
 - `src/components/ui/index.ts` has no current imports because call sites import UI components directly.
 - The `TECHNICAL_OWNER` product option enum/value path now has a cleanup migration after the move to user-backed technical owners, validated in local Docker.
@@ -416,6 +419,6 @@ Target deliverables:
 
 ---
 
-**Last Updated:** April 22, 2026  
-**Current Status:** Active Development  
+**Last Updated:** April 23, 2026
+**Current Status:** Active Development
 **Program Summary:** Asset, facility, network, license, product portfolio, dashboard, global search, and core UX feedback foundations are operational. The next major gains come from deeper portfolio dependency modeling and production deployment hardening.

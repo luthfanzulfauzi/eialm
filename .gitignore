@@ -18,6 +18,7 @@ next-env.d.ts
 # This ignores the local database files we mapped in docker-compose.yml
 pgdata/
 docker-volumes/
+postgres-data/
 *.db
 *.db-journal
 

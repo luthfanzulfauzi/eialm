@@ -108,22 +108,27 @@ Choose one setup path:
 Create a local `.env` file from `.env.example`, or use the values below as a starting point.
 
 ```env
-DATABASE_URL=postgresql://admin:password123@localhost:5432/eialm_db?schema=public
 NEXTAUTH_SECRET=replace-with-a-long-random-secret
 NEXTAUTH_URL=http://localhost:3000
+CRON_SECRET=replace-with-a-long-random-secret
+
+DATABASE_URL=postgresql://admin:password123@localhost:5432/eialm_db?schema=public
+NODE_ENV=development
 
 POSTGRES_USER=admin
 POSTGRES_PASSWORD=password123
+POSTGRES_DB=eialm_db
 
 ADMIN_EMAIL=admin@eialm.internal
-ADMIN_PASSWORD=admin123
-CRON_SECRET=replace-with-a-long-random-secret
+ADMIN_PASSWORD=change-this-admin-password
 ```
 
 Notes:
 
-- For Docker Compose, the app container uses `db` as the database host internally.
+- `DATABASE_URL` is for local development outside Docker, where `localhost` is usually the database host.
+- Docker Compose builds the in-container `DATABASE_URL` from `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB`, using `db` as the database host internally.
 - For running outside Docker, `localhost` is the usual database host.
+- Production deployments should set real secrets directly in the deployment environment and point `DATABASE_URL` at the production PostgreSQL service. Do not commit real `.env` files.
 
 ## Quick Start With Docker
 
@@ -136,7 +141,8 @@ docker compose up --build
 
 3. Open the app at [http://localhost:3000](http://localhost:3000)
 
-The container startup runs Prisma migrations automatically.
+The container startup runs Prisma migrations and verifies the seed admin account automatically.
+Compose stores PostgreSQL data in the named Docker volume `eialm_postgres-data`; it does not write runtime database files into the repository.
 
 ## Default Admin Account
 
@@ -243,12 +249,9 @@ There are still a few production-readiness concerns to address:
 ## Known Gaps
 
 - Products / Application needs authenticated end-to-end browser CRUD validation and further feedback/toast polish.
-- Global search is still a placeholder.
 - Cross-module pagination/filter consistency and toast notifications are still pending outside the completed Asset Inventory core.
 - Richer dashboard repair widgets are still incomplete.
 - Production deployment needs ingress, backup, and operational hardening work.
-- Residual tracked backup files exist under `src/` and should be removed once confirmed unnecessary:
-  `src/app/(dashboard)/page.tsx.backup`, `src/lib/validations/auth.ts.backup`, and `src/types/index.d.ts.backup`.
 - `src/hooks/useDebounce.ts` and `src/components/ui/index.ts` appear unused in the current source tree.
 - The old `TECHNICAL_OWNER` product option path has a cleanup migration and was validated in local Docker.
 
@@ -257,9 +260,8 @@ There are still a few production-readiness concerns to address:
 The next major priorities are:
 
 1. validate Products / Application CRUD in an authenticated browser flow
-2. implement global search
-3. improve advanced filters, pagination, and feedback/toast UX
-4. harden production deployment and operations
+2. improve advanced filters, pagination, and feedback/toast UX
+3. harden production deployment and operations
 
 See [milestones.md](./milestones.md) for the milestone-plus-deliverables plan.
 

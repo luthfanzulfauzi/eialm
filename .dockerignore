@@ -2,7 +2,14 @@
 .next
 node_modules
 pgdata
+.env
+.env.*
+!.env.example
 .env.devtest
 Dockerfile.devtest
 docker-compose.devtest.yml
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+coverage
