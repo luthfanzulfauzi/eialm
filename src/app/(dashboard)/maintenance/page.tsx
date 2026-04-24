@@ -271,10 +271,6 @@ export default function MaintenancePage() {
       <section className="rounded-3xl border border-slate-800 bg-[radial-gradient(circle_at_top_left,_rgba(245,158,11,0.13),_transparent_28%),linear-gradient(180deg,_rgba(15,23,42,0.94),_rgba(8,11,18,0.96))] p-8 shadow-2xl">
         <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
           <div className="max-w-3xl space-y-3">
-            <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-amber-300">
-              <Wrench size={14} />
-              Milestone 6
-            </div>
             <div>
               <h1 className="text-3xl font-bold tracking-tight text-white">Maintenance Operations</h1>
               <p className="mt-2 text-sm leading-6 text-slate-300">
