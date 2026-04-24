@@ -46,6 +46,7 @@ export const licenseSchema = z.object({
   name: z.string().trim().min(2, "License name must be at least 2 characters."),
   key: optionalTrimmedString,
   licenseFile: optionalTrimmedString,
+  poSiSoNumber: optionalTrimmedString,
   expiryDate: optionalDate,
   assetId: optionalTrimmedString,
   productIds: relationIdList,

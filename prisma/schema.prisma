@@ -251,6 +251,7 @@ model License {
   name        String
   key         String?   @unique
   licenseFile String?
+  poSiSoNumber String?
   expiryDate  DateTime?
   isExpired   Boolean   @default(false)
   

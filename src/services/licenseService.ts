@@ -277,6 +277,7 @@ export const LicenseService = {
         name: data.name,
         key: data.key || null,
         licenseFile: data.licenseFile || null,
+        poSiSoNumber: data.poSiSoNumber || null,
         expiryDate: normalized.expiryDate,
         assetId: data.assetId || null,
         isExpired: normalized.isExpired,
@@ -298,6 +299,7 @@ export const LicenseService = {
     if (data.name !== undefined) payload.name = data.name;
     if (data.key !== undefined) payload.key = data.key || null;
     if (data.licenseFile !== undefined) payload.licenseFile = data.licenseFile || null;
+    if (data.poSiSoNumber !== undefined) payload.poSiSoNumber = data.poSiSoNumber || null;
     if (data.assetId !== undefined) payload.assetId = data.assetId || null;
     if (data.expiryDate !== undefined) {
       const normalized = toStoredExpiry(data.expiryDate);

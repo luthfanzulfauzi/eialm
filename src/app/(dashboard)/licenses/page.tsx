@@ -41,6 +41,7 @@ type LicenseRecord = {
   name: string;
   key: string | null;
   licenseFile: string | null;
+  poSiSoNumber: string | null;
   expiryDate: string | null;
   isExpired: boolean;
   assetId: string | null;
@@ -62,6 +63,7 @@ type LicenseFormState = {
   name: string;
   key: string;
   licenseFile: string;
+  poSiSoNumber: string;
   expiryDate: string;
   assetId: string;
   productIds: string[];
@@ -71,6 +73,7 @@ const emptyForm: LicenseFormState = {
   name: "",
   key: "",
   licenseFile: "",
+  poSiSoNumber: "",
   expiryDate: "",
   assetId: "",
   productIds: [],
@@ -193,6 +196,7 @@ export default function LicensePage() {
         license.name,
         license.key,
         license.licenseFile,
+        license.poSiSoNumber,
         license.asset?.name,
         license.asset?.serialNumber,
         ...license.products.flatMap((product) => [product.name, product.code]),
@@ -215,6 +219,7 @@ export default function LicensePage() {
       name: license.name,
       key: license.key || "",
       licenseFile: license.licenseFile || "",
+      poSiSoNumber: license.poSiSoNumber || "",
       expiryDate: license.expiryDate ? format(new Date(license.expiryDate), "yyyy-MM-dd") : "",
       assetId: license.assetId || "",
       productIds: license.products.map((product) => product.id),
@@ -250,6 +255,7 @@ export default function LicensePage() {
           name: form.name.trim(),
           key: form.key.trim() || null,
           licenseFile: form.licenseFile.trim() || null,
+          poSiSoNumber: form.poSiSoNumber.trim() || null,
           expiryDate: form.expiryDate || null,
           assetId: form.assetId || null,
           productIds: form.productIds,
@@ -481,6 +487,9 @@ export default function LicensePage() {
                           <div className="mt-1 text-xs text-slate-500">
                             {license.licenseFile || "No file attached"}
                           </div>
+                          <div className="mt-1 text-xs text-slate-500">
+                            {license.poSiSoNumber || "No PO/SI/SO number"}
+                          </div>
                         </div>
                       </div>
                     </td>
@@ -639,6 +648,17 @@ export default function LicensePage() {
                 value={form.licenseFile}
                 onChange={(e) => setForm((current) => ({ ...current, licenseFile: e.target.value }))}
                 placeholder="Optional file path, URL, or reference"
+              />
+            </div>
+
+            <div className="space-y-2 md:col-span-2">
+              <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                License PO/SI/SO Number
+              </label>
+              <Input
+                value={form.poSiSoNumber}
+                onChange={(e) => setForm((current) => ({ ...current, poSiSoNumber: e.target.value }))}
+                placeholder="Optional PO, SI, or SO reference"
               />
             </div>
 
