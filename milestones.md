@@ -1,7 +1,7 @@
 # ElitGrid Project Milestones
 ## Infrastructure Operations Platform
 
-This roadmap reflects the current repository state as of April 22, 2026. It is organized as milestone-plus-deliverables so it can serve both as a progress report and as an execution plan.
+This roadmap reflects the current repository state as of April 25, 2026. It is organized as milestone-plus-deliverables so it can serve both as a progress report and as an execution plan.
 
 Percentages represent implementation maturity in the codebase today, not the final target state.
 
@@ -310,7 +310,7 @@ Align the application experience with the original system design for visibility,
 
 ---
 
-## Milestone 8: Deployment & Production Readiness (95% Complete)
+## Milestone 8: Deployment & Production Readiness (88% Complete)
 
 **Goal**
 
@@ -331,12 +331,20 @@ Move from containerized development readiness to production-safe deployment and 
 - [x] Production runbook and validation script exist.
 - [x] Lint validation is now non-interactive through committed ESLint configuration.
 - [x] Next.js has been upgraded from the EOL 14.x line to supported `15.5.15` LTS with React 19.
+- [x] Fresh Docker validation on April 25, 2026 confirms successful image build, container startup, app health, backup creation, and restore-drill execution.
+- [x] The optional Nginx profile serves the documented HTTP health path successfully on port `80`.
+- [ ] The optional Nginx profile still publishes port `443` without an active TLS listener/config, so HTTPS validation currently fails.
+- [ ] The Compose production path still exposes the app directly on host port `3000`, which bypasses the reverse proxy when the proxy profile is enabled.
+- [ ] Production Compose still contains insecure fallback credentials for PostgreSQL/admin bootstrapping if real secrets are omitted.
+- [ ] Seeded admin rotation is incomplete because changing `ADMIN_PASSWORD` after first deploy does not update the existing admin password.
 - [ ] Off-host backup replication and real production restore-drill evidence are still pending.
 - [ ] External log/metrics shipping to the selected monitoring platform is still pending.
 - [ ] The remaining moderate `next-auth` / `uuid` advisory requires an Auth.js major-version migration.
 - [x] Build-time dependence on Google Fonts fetching has been removed.
 - [x] Authenticated dashboard server rendering is explicitly dynamic to avoid static build assumptions around database-backed pages.
 - [ ] Production security review and hostname/TLS validation pass are still pending.
+- [ ] Metrics validation remains partial because the standard validation path skips `/api/metrics` when `OBSERVABILITY_TOKEN` is unset.
+- [ ] Current Docker lint/type/build validation still reports three React hook dependency warnings in asset/rack dashboard pages.
 
 **Deliverables**
 
@@ -347,7 +355,7 @@ Move from containerized development readiness to production-safe deployment and 
 - [x] Production-ready persistent volume and storage strategy
 - [x] Backup and restore procedure
 - [x] Health checks
-- [x] Observability setup for logs and metrics
+- [ ] Observability setup for logs and metrics
 - [x] Scheduled backup and restore-drill tooling
 - [x] Production runbook and validation script
 - [x] Baseline security headers
@@ -355,13 +363,18 @@ Move from containerized development readiness to production-safe deployment and 
 - [x] Build/runtime hardening against unavailable database during static optimization
 - [x] Non-interactive lint configuration
 - [x] Next.js 15 LTS / React 19 upgrade
+- [ ] Proxy hardening so production traffic cannot bypass ingress controls
+- [ ] Active HTTPS/TLS listener validation for the documented `443` path
+- [ ] Secret-hardening of production Compose defaults and admin bootstrap behavior
 - [ ] Real-host TLS/security review and production validation pass
 
 **Exit Criteria**
 
-- The application can be deployed behind a stable ingress path.
-- Data persistence, recovery, health visibility, and build robustness are all documented and tested.
-- Remaining completion depends on environment-specific proof: production hostname, certificate files or tunnel credentials, off-host backup target, and monitoring destination.
+- [ ] The application can be deployed behind a stable ingress path that does not expose a proxy-bypass path.
+- [ ] HTTPS/TLS is validated on the real deployment path, or Cloudflare Tunnel is validated as the chosen ingress.
+- [ ] Data persistence, recovery, health visibility, and build robustness are all documented and tested.
+- [ ] Secrets and bootstrap credentials no longer rely on insecure production fallbacks.
+- [ ] Remaining completion depends on environment-specific proof: production hostname, certificate files or tunnel credentials, off-host backup target, observability token, and monitoring destination.
 
 ---
 
@@ -414,16 +427,20 @@ Target deliverables:
 - health checks and observability
 - external dependency reduction in build
 - database-safe build/runtime behavior
+- proxy-bypass removal and active TLS validation
+- secret/default hardening for production bootstrap
 
 ---
 
 ## Immediate Next Deliverables
 
-1. Validate the completed Products / Application dependency-mapping migration and CRUD flow in Docker.
-2. Continue UX hardening with authenticated browser regression passes for the completed dashboard/search/toast flows.
-3. Validate the production deployment profile on a real hostname with TLS or Cloudflare Tunnel credentials.
-4. Tighten rack/location movement validation and large-table UX.
-5. Harden Docker-to-production deployment assumptions.
+1. Remove the direct app exposure on host port `3000` for proxy deployments, or split local-dev and production Compose profiles so ingress cannot be bypassed.
+2. Implement and validate real TLS handling for the optional Nginx `443` path, or document Cloudflare Tunnel as the only supported HTTPS ingress.
+3. Remove insecure production fallback credentials and make admin/bootstrap secret handling explicit and fail-fast.
+4. Decide and implement real off-host backup replication plus a production restore-drill record.
+5. Complete metrics validation with a real `OBSERVABILITY_TOKEN` and selected log/metric shipping target.
+6. Continue UX hardening with authenticated browser regression passes for the completed dashboard/search/toast flows.
+7. Clean up the three existing React hook dependency warnings in asset/rack dashboard pages.
 
 ---
 
@@ -441,9 +458,14 @@ Target deliverables:
 - `npm run lint` now works non-interactively in Docker. Current lint output has three pre-existing React hook dependency warnings in asset/rack pages.
 - Production dependency audit no longer reports the Next.js high-severity advisory after the Next.js 15 LTS upgrade. The remaining findings are the moderate `next-auth` / `uuid` chain that requires an Auth.js major-version migration.
 - Scheduled backups, retention pruning, restore drills, token-protected metrics, Docker log rotation, security headers, and a production validation runbook/script are now in place.
+- April 25, 2026 Docker production-readiness validation confirmed: successful image build, healthy app/db startup, working `/api/health`, successful backup creation, and a passing restore drill.
+- The optional Nginx proxy path works over HTTP on port `80`, but the documented `443` path is not yet backed by an active TLS listener and currently fails HTTPS checks.
+- Current proxy deployments still leave the app directly reachable on host port `3000`, so ingress controls can be bypassed until the Compose profile is tightened.
+- Production Compose still includes insecure fallback credential paths for PostgreSQL and the seeded admin account if operators omit real secrets.
+- The seed flow currently verifies admin presence but does not rotate the stored admin password when `ADMIN_PASSWORD` changes after initial creation.
 
 ---
 
-**Last Updated:** April 23, 2026
+**Last Updated:** April 25, 2026
 **Current Status:** Active Development
-**Program Summary:** Asset, facility, network, license, product portfolio, dashboard, global search, and core UX feedback foundations are operational. The next major gains come from production deployment hardening, authenticated browser regression coverage, and larger-data UX refinement.
+**Program Summary:** Asset, facility, network, license, product portfolio, dashboard, global search, and core UX feedback foundations are operational. Fresh Docker validation confirms that the app builds, starts, backs up, and restores successfully, while the remaining high-priority work is concentrated in production ingress hardening, TLS activation/validation, secret handling, observability completion, and authenticated browser regression coverage.
