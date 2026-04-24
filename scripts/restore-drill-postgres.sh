@@ -5,10 +5,10 @@ BACKUP_FILE="${1:-}"
 BACKUP_DIR="${BACKUP_DIR:-./backups}"
 COMPOSE_SERVICE="${COMPOSE_SERVICE:-db}"
 POSTGRES_USER="${POSTGRES_USER:-admin}"
-DRILL_DB="eialm_restore_drill_$(date +%Y%m%d%H%M%S)"
+DRILL_DB="elitgrid_restore_drill_$(date +%Y%m%d%H%M%S)"
 
 if [ -z "$BACKUP_FILE" ]; then
-  BACKUP_FILE="$(find "$BACKUP_DIR" -type f -name 'eialm-*.dump' | sort | tail -1)"
+  BACKUP_FILE="$(find "$BACKUP_DIR" -type f -name 'elitgrid-*.dump' | sort | tail -1)"
 fi
 
 if [ -z "$BACKUP_FILE" ] || [ ! -f "$BACKUP_FILE" ]; then

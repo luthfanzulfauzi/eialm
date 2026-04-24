@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 const THROTTLE_MS = 60_000;
-const ACTIVITY_COOKIE = "eialm_last_activity";
+const ACTIVITY_COOKIE = "elitgrid_last_activity";
 
 function applyActivityCookie(response: NextResponse, value: string, maxAge?: number) {
   response.cookies.set(ACTIVITY_COOKIE, value, {

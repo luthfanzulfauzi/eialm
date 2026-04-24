@@ -1,6 +1,6 @@
-# EIALM System Design
+# ElitGrid System Design
 
-Enterprise Infrastructure & Asset Lifecycle Manager (EIALM) is an internal web application for infrastructure inventory, facility placement, IP address management, licensing, product/application portfolio ownership, and lifecycle visibility.
+ElitGrid is an internal web application for infrastructure inventory, facility placement, IP address management, licensing, product/application portfolio ownership, and lifecycle visibility.
 
 ## Current Implementation Status
 

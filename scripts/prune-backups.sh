@@ -9,4 +9,4 @@ if [ ! -d "$BACKUP_DIR" ]; then
   exit 1
 fi
 
-find "$BACKUP_DIR" -type f -name 'eialm-*.dump' -mtime +"$BACKUP_RETENTION_DAYS" -print -delete
+find "$BACKUP_DIR" -type f -name 'elitgrid-*.dump' -mtime +"$BACKUP_RETENTION_DAYS" -print -delete

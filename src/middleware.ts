@@ -1,7 +1,7 @@
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
 
-const ACTIVITY_COOKIE = "eialm_last_activity";
+const ACTIVITY_COOKIE = "elitgrid_last_activity";
 
 function clearSessionCookies(response: NextResponse) {
   const cookieNames = [

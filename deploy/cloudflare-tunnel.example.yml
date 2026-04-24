@@ -1,10 +1,10 @@
-tunnel: eialm
-credentials-file: /etc/cloudflared/eialm.json
+tunnel: elitgrid
+credentials-file: /etc/cloudflared/elitgrid.json
 
 ingress:
-  - hostname: eialm.example.com
+  - hostname: elitgrid.example.com
     service: http://app:3000
-  - hostname: metrics.eialm.example.com
+  - hostname: metrics.elitgrid.example.com
     path: /metrics
     service: http://app:3000
   - service: http_status:404

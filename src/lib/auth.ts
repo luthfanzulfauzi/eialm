@@ -10,7 +10,7 @@ export const authOptions: NextAuthOptions = {
   },
   providers: [
     CredentialsProvider({
-      name: "EIALM Login",
+      name: "ElitGrid Login",
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" }

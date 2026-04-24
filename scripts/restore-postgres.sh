@@ -2,14 +2,14 @@
 set -eu
 
 if [ "$#" -ne 1 ]; then
-  echo "Usage: $0 path/to/eialm.dump" >&2
+  echo "Usage: $0 path/to/elitgrid.dump" >&2
   exit 1
 fi
 
 BACKUP_FILE="$1"
 COMPOSE_SERVICE="${COMPOSE_SERVICE:-db}"
 POSTGRES_USER="${POSTGRES_USER:-admin}"
-POSTGRES_DB="${POSTGRES_DB:-eialm_db}"
+POSTGRES_DB="${POSTGRES_DB:-elitgrid_db}"
 
 if [ ! -f "$BACKUP_FILE" ]; then
   echo "Backup file not found: $BACKUP_FILE" >&2

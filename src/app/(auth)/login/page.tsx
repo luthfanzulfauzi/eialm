@@ -29,7 +29,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-[#0f172a]">
       <div className="w-full max-w-md p-8 bg-[#1e293b] rounded-2xl border border-slate-700 shadow-2xl">
         <div className="mb-8 text-center">
-          <h1 className="text-2xl font-bold text-white">EIALM Portal</h1>
+          <h1 className="text-2xl font-bold text-white">ElitGrid Portal</h1>
           <p className="text-slate-400 text-sm mt-2">Sign in to manage infrastructure</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -38,7 +38,7 @@ export default function LoginPage() {
             <input 
               type="email" 
               className="w-full bg-[#0f172a] border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-              placeholder="admin@eialm.internal"
+              placeholder="admin@elitgrid.internal"
               onChange={(e) => setEmail(e.target.value)}
               required
             />

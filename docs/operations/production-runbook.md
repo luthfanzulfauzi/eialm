@@ -1,4 +1,4 @@
-# EIALM Production Runbook
+# ElitGrid Production Runbook
 
 ## Deployment Modes
 
@@ -79,7 +79,7 @@ Validate the latest backup without replacing production data:
 Validate a specific backup:
 
 ```bash
-./scripts/restore-drill-postgres.sh ./backups/eialm-eialm_db-YYYYMMDD-HHMMSS.dump
+./scripts/restore-drill-postgres.sh ./backups/elitgrid-elitgrid_db-YYYYMMDD-HHMMSS.dump
 ```
 
 The drill creates a temporary PostgreSQL database, restores the dump, runs a schema check, and drops the temporary database.

@@ -760,7 +760,7 @@ export default function ProductsPage() {
               <h1 className="text-3xl font-bold tracking-tight text-white">Products / Application Portfolio</h1>
               <p className="mt-2 text-sm leading-6 text-slate-300">
                 Manage business-facing products as first-class records, then map them to the assets,
-                licenses, IPs, locations, compliance metadata, and centrally managed ownership lists in EIALM.
+                licenses, IPs, locations, compliance metadata, and centrally managed ownership lists in ElitGrid.
               </p>
             </div>
           </div>

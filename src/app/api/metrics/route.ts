@@ -34,24 +34,24 @@ export async function GET(request: Request) {
     ]);
 
     const lines = [
-      "# HELP eialm_up Application health status.",
-      "# TYPE eialm_up gauge",
-      metric("eialm_up", 1),
-      "# HELP eialm_database_up Database connectivity status.",
-      "# TYPE eialm_database_up gauge",
-      metric("eialm_database_up", 1),
-      "# HELP eialm_entity_total Current entity totals by type.",
-      "# TYPE eialm_entity_total gauge",
-      metric("eialm_entity_total", assetCount, { entity: "assets" }),
-      metric("eialm_entity_total", licenseCount, { entity: "licenses" }),
-      metric("eialm_entity_total", openMaintenanceCount, { entity: "open_maintenance" }),
-      metric("eialm_entity_total", unresolvedNotificationCount, { entity: "unresolved_notifications" }),
-      "# HELP eialm_uptime_seconds Application process uptime.",
-      "# TYPE eialm_uptime_seconds gauge",
-      metric("eialm_uptime_seconds", Math.round(process.uptime())),
-      "# HELP eialm_metrics_checked_at_seconds Metrics collection timestamp.",
-      "# TYPE eialm_metrics_checked_at_seconds gauge",
-      metric("eialm_metrics_checked_at_seconds", Math.floor(checkedAt / 1000)),
+      "# HELP elitgrid_up Application health status.",
+      "# TYPE elitgrid_up gauge",
+      metric("elitgrid_up", 1),
+      "# HELP elitgrid_database_up Database connectivity status.",
+      "# TYPE elitgrid_database_up gauge",
+      metric("elitgrid_database_up", 1),
+      "# HELP elitgrid_entity_total Current entity totals by type.",
+      "# TYPE elitgrid_entity_total gauge",
+      metric("elitgrid_entity_total", assetCount, { entity: "assets" }),
+      metric("elitgrid_entity_total", licenseCount, { entity: "licenses" }),
+      metric("elitgrid_entity_total", openMaintenanceCount, { entity: "open_maintenance" }),
+      metric("elitgrid_entity_total", unresolvedNotificationCount, { entity: "unresolved_notifications" }),
+      "# HELP elitgrid_uptime_seconds Application process uptime.",
+      "# TYPE elitgrid_uptime_seconds gauge",
+      metric("elitgrid_uptime_seconds", Math.round(process.uptime())),
+      "# HELP elitgrid_metrics_checked_at_seconds Metrics collection timestamp.",
+      "# TYPE elitgrid_metrics_checked_at_seconds gauge",
+      metric("elitgrid_metrics_checked_at_seconds", Math.floor(checkedAt / 1000)),
     ];
 
     return new NextResponse(`${lines.join("\n")}\n`, {
@@ -59,12 +59,12 @@ export async function GET(request: Request) {
     });
   } catch {
     const lines = [
-      "# HELP eialm_up Application health status.",
-      "# TYPE eialm_up gauge",
-      metric("eialm_up", 1),
-      "# HELP eialm_database_up Database connectivity status.",
-      "# TYPE eialm_database_up gauge",
-      metric("eialm_database_up", 0),
+      "# HELP elitgrid_up Application health status.",
+      "# TYPE elitgrid_up gauge",
+      metric("elitgrid_up", 1),
+      "# HELP elitgrid_database_up Database connectivity status.",
+      "# TYPE elitgrid_database_up gauge",
+      metric("elitgrid_database_up", 0),
     ];
 
     return new NextResponse(`${lines.join("\n")}\n`, {

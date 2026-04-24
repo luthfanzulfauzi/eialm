@@ -121,7 +121,7 @@ export const Sidebar = () => {
       isCollapsed ? "w-20" : "w-64"
     )}>
       <div className="p-6 flex items-center justify-between">
-        {!isCollapsed && <span className="font-bold text-xl tracking-tighter text-white">EIALM</span>}
+        {!isCollapsed && <span className="font-bold text-xl tracking-tighter text-white">ElitGrid</span>}
         <button onClick={toggle} className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400">
           <ChevronLeft className={cn("transition-transform", isCollapsed && "rotate-180")} size={18} />
         </button>

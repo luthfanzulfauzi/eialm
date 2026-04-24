@@ -1,5 +1,5 @@
-# EIALM Project Milestones
-## Enterprise Infrastructure & Asset Lifecycle Manager
+# ElitGrid Project Milestones
+## Infrastructure Operations Platform
 
 This roadmap reflects the current repository state as of April 22, 2026. It is organized as milestone-plus-deliverables so it can serve both as a progress report and as an execution plan.
 

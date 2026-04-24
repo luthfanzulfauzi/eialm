@@ -4,8 +4,8 @@ import { ToastProvider } from "@/providers/toast-provider";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "EIALM | Asset Management",
-  description: "Enterprise Infrastructure Asset Lifecycle Management",
+  title: "ElitGrid | Infrastructure Operations",
+  description: "ElitGrid infrastructure and asset lifecycle operations platform",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

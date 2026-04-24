@@ -1,6 +1,6 @@
-# EIALM
+# ElitGrid
 
-Enterprise Infrastructure & Asset Lifecycle Manager (EIALM) is a modern web application for managing infrastructure assets, facilities, IP inventory, users, and operational lifecycle data.
+ElitGrid is a modern web application for managing infrastructure assets, facilities, IP inventory, users, and operational lifecycle data.
 
 The project is built with Next.js 15 LTS, React 19, TypeScript, Prisma, PostgreSQL, NextAuth.js, Tailwind CSS, and Docker.
 
@@ -113,14 +113,14 @@ NEXTAUTH_URL=http://localhost:3000
 CRON_SECRET=replace-with-a-long-random-secret
 OBSERVABILITY_TOKEN=replace-with-a-long-random-secret
 
-DATABASE_URL=postgresql://admin:password123@localhost:5432/eialm_db?schema=public
+DATABASE_URL=postgresql://admin:password123@localhost:5432/elitgrid_db?schema=public
 NODE_ENV=development
 
 POSTGRES_USER=admin
 POSTGRES_PASSWORD=password123
-POSTGRES_DB=eialm_db
+POSTGRES_DB=elitgrid_db
 
-ADMIN_EMAIL=admin@eialm.internal
+ADMIN_EMAIL=admin@elitgrid.internal
 ADMIN_PASSWORD=change-this-admin-password
 ```
 
@@ -143,7 +143,7 @@ docker compose up --build
 3. Open the app at [http://localhost:3000](http://localhost:3000)
 
 The container startup runs Prisma migrations and verifies the seed admin account automatically.
-Compose stores PostgreSQL data in the named Docker volume `eialm_postgres-data`; it does not write runtime database files into the repository.
+Compose stores PostgreSQL data in the named Docker volume `postgres-data`; it does not write runtime database files into the repository.
 
 ## Production Compose Path
 
@@ -153,7 +153,7 @@ The default Compose stack runs PostgreSQL and the Next.js app directly on port `
 docker compose --profile proxy up -d --build
 ```
 
-Nginx listens on `HTTP_PORT` and `HTTPS_PORT` from `.env` and forwards traffic to the app container. The included default config serves HTTP, forwards `/health` and `/metrics`, and applies baseline security headers. Mount certificates through `TLS_CERTS_DIR` and update `deploy/nginx/conf.d/eialm.conf` when terminating TLS inside Nginx.
+Nginx listens on `HTTP_PORT` and `HTTPS_PORT` from `.env` and forwards traffic to the app container. The included default config serves HTTP, forwards `/health` and `/metrics`, and applies baseline security headers. Mount certificates through `TLS_CERTS_DIR` and update `deploy/nginx/conf.d/elitgrid.conf` when terminating TLS inside Nginx.
 
 For Cloudflare Tunnel deployments, keep the app internal and point `cloudflared` at `http://app:3000`. A starter ingress file is available at `deploy/cloudflare-tunnel.example.yml`.
 
@@ -187,7 +187,7 @@ PostgreSQL runtime data is stored in the named Compose volume `postgres-data`. C
 Backups are written to `./backups` by default and are ignored by Git. Restore a backup into the running database service with:
 
 ```bash
-./scripts/restore-postgres.sh ./backups/eialm-eialm_db-YYYYMMDD-HHMMSS.dump
+./scripts/restore-postgres.sh ./backups/elitgrid-elitgrid_db-YYYYMMDD-HHMMSS.dump
 ```
 
 For production, copy backup files to storage outside the Docker host, protect them as sensitive data, and test restore into a non-production environment before relying on the procedure.
@@ -215,7 +215,7 @@ The Prisma seed script creates or verifies an admin user using these environment
 
 Default fallback values in the current seed:
 
-- email: `admin@eialm.internal`
+- email: `admin@elitgrid.internal`
 - password: `admin123`
 
 Change these in `.env` before first use.
