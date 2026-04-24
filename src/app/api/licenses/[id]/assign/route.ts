@@ -6,8 +6,9 @@ import { LicenseService } from "@/services/licenseService";
 
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return new NextResponse("Unauthorized", { status: 401 });
@@ -19,7 +20,7 @@ export async function POST(
   try {
     const body = await req.json();
     const payload = licenseAssignmentSchema.parse(body);
-    const license = await LicenseService.assignLicense(params.id, payload.assetId);
+    const license = await LicenseService.assignLicense(id, payload.assetId);
     return NextResponse.json(license);
   } catch (error) {
     console.error("License ASSIGN Error:", error);

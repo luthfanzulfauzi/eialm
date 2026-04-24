@@ -6,8 +6,9 @@ import { MaintenanceService } from "@/services/maintenanceService";
 
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return new NextResponse("Unauthorized", { status: 401 });
@@ -19,7 +20,7 @@ export async function PATCH(
   try {
     const body = await req.json();
     const payload = maintenanceUpdateSchema.parse(body);
-    const record = await MaintenanceService.updateMaintenance(params.id, payload, session.user.id);
+    const record = await MaintenanceService.updateMaintenance(id, payload, session.user.id);
     return NextResponse.json(record);
   } catch (error) {
     console.error("Maintenance PATCH Error:", error);

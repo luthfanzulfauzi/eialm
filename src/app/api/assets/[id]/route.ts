@@ -13,8 +13,9 @@ const formatAssetError = (error: unknown) => {
 
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session || session.user.role === "VIEWER") {
     return new NextResponse("Unauthorized", { status: 401 });
@@ -22,7 +23,7 @@ export async function PATCH(
 
   try {
     const body = await req.json();
-    const updated = await AssetService.updateAsset(params.id, body, session.user.id);
+    const updated = await AssetService.updateAsset(id, body, session.user.id);
     return NextResponse.json(updated);
   } catch (error: any) {
     return NextResponse.json({ error: formatAssetError(error) }, { status: 400 });
@@ -31,15 +32,16 @@ export async function PATCH(
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session || session.user.role === "VIEWER") {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
   try {
-    await AssetService.deleteAsset(params.id, session.user.id);
+    await AssetService.deleteAsset(id, session.user.id);
     return new NextResponse(null, { status: 204 });
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || "Failed to delete asset" }, { status: 400 });

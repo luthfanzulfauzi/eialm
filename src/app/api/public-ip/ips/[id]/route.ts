@@ -13,7 +13,8 @@ const UpdateStatusSchema = z.object({
   assignmentTargetLabel: z.string().optional().nullable(),
 });
 
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session || (session.user.role !== "ADMIN" && session.user.role !== "OPERATOR")) {
     return new NextResponse("Forbidden", { status: 403 });
@@ -32,7 +33,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   }
 
   try {
-    const updated = await PublicIpService.updateIpStatus(params.id, parsed.data);
+    const updated = await PublicIpService.updateIpStatus(id, parsed.data);
     await writeAuditLog({
       action: "NETWORK_PUBLIC_IP_UPDATE",
       userId: session.user.id,
@@ -69,19 +70,20 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   }
 }
 
-export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session || (session.user.role !== "ADMIN" && session.user.role !== "OPERATOR")) {
     return new NextResponse("Forbidden", { status: 403 });
   }
 
   try {
-    await PublicIpService.deleteIp(params.id);
+    await PublicIpService.deleteIp(id);
     await writeAuditLog({
       action: "NETWORK_PUBLIC_IP_DELETE",
       userId: session.user.id,
       details: {
-        ipId: params.id,
+        ipId: id,
       },
     });
     return NextResponse.json({ ok: true });

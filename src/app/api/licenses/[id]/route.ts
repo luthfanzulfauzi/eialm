@@ -14,8 +14,9 @@ const formatLicenseError = (error: unknown) => {
 
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return new NextResponse("Unauthorized", { status: 401 });
@@ -27,7 +28,7 @@ export async function PATCH(
   try {
     const body = await req.json();
     const payload = licenseUpdateSchema.parse(body);
-    const license = await LicenseService.updateLicense(params.id, payload);
+    const license = await LicenseService.updateLicense(id, payload);
     return NextResponse.json(license);
   } catch (error) {
     console.error("License PATCH Error:", error);
@@ -37,8 +38,9 @@ export async function PATCH(
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return new NextResponse("Unauthorized", { status: 401 });
@@ -48,7 +50,7 @@ export async function DELETE(
   }
 
   try {
-    await LicenseService.deleteLicense(params.id);
+    await LicenseService.deleteLicense(id);
     return new NextResponse(null, { status: 204 });
   } catch (error) {
     console.error("License DELETE Error:", error);

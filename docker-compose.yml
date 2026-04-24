@@ -13,6 +13,11 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    logging:
+      driver: json-file
+      options:
+        max-size: ${LOG_MAX_SIZE:-10m}
+        max-file: ${LOG_MAX_FILE:-5}
 
   app:
     build:
@@ -26,6 +31,7 @@ services:
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
       NEXTAUTH_URL: ${NEXTAUTH_URL}
       CRON_SECRET: ${CRON_SECRET:-}
+      OBSERVABILITY_TOKEN: ${OBSERVABILITY_TOKEN:-}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@eialm.internal}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
       NODE_ENV: production
@@ -38,6 +44,11 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: ${LOG_MAX_SIZE:-10m}
+        max-file: ${LOG_MAX_FILE:-5}
 
   nginx:
     image: nginx:1.27-alpine
@@ -60,6 +71,46 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: ${LOG_MAX_SIZE:-10m}
+        max-file: ${LOG_MAX_FILE:-5}
+
+  backup:
+    image: postgres:15-alpine
+    restart: always
+    profiles:
+      - backup
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:-password123}
+      POSTGRES_USER: ${POSTGRES_USER:-admin}
+      POSTGRES_DB: ${POSTGRES_DB:-eialm_db}
+      BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+    volumes:
+      - ./backups:/backups
+    depends_on:
+      db:
+        condition: service_healthy
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        mkdir -p /backups
+        while true; do
+          timestamp="$$(date +%Y%m%d-%H%M%S)"
+          output="/backups/eialm-$${POSTGRES_DB}-$${timestamp}.dump"
+          pg_dump -h db -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}" -Fc --no-owner --no-acl > "$${output}"
+          find /backups -type f -name 'eialm-*.dump' -mtime +"$${BACKUP_RETENTION_DAYS}" -delete
+          sleep "$${BACKUP_INTERVAL_SECONDS}"
+        done
+    logging:
+      driver: json-file
+      options:
+        max-size: ${LOG_MAX_SIZE:-10m}
+        max-file: ${LOG_MAX_FILE:-5}
 
 volumes:
   postgres-data:

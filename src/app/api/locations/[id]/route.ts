@@ -5,8 +5,9 @@ import { authOptions } from "@/lib/auth";
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return new NextResponse("Unauthorized", { status: 401 });
@@ -16,7 +17,7 @@ export async function GET(
     const { searchParams } = new URL(req.url);
     const includeAssets = searchParams.get("includeAssets") === "1";
     const location = await prisma.location.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         assets: includeAssets
           ? {
@@ -56,8 +57,9 @@ export async function GET(
 // ADDED: PATCH method for updating Datacenter/Warehouse details
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   
   // Security check: VIEWERS cannot edit infrastructure
@@ -68,7 +70,7 @@ export async function PATCH(
   try {
     const body = await req.json();
     const updatedLocation = await prisma.location.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         name: body.name,
         address: body.address,
@@ -84,8 +86,9 @@ export async function PATCH(
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (session?.user.role !== "ADMIN") {
     return new NextResponse("Unauthorized", { status: 401 });
@@ -93,7 +96,7 @@ export async function DELETE(
 
   try {
     await prisma.location.delete({
-      where: { id: params.id }
+      where: { id }
     });
     return new NextResponse(null, { status: 204 });
   } catch (error) {

@@ -9,7 +9,7 @@ Percentages represent implementation maturity in the codebase today, not the fin
 
 ## Planning Assumptions
 
-- The current stack remains Next.js 14, TypeScript, Prisma, PostgreSQL, Tailwind CSS, NextAuth.js, and Docker.
+- The current stack is now Next.js 15 LTS, React 19, TypeScript, Prisma, PostgreSQL, Tailwind CSS, NextAuth.js, and Docker.
 - The primary target is a production-ready internal web application for infrastructure and asset lifecycle management.
 - The next development priority is functional completeness over visual polish.
 
@@ -23,7 +23,7 @@ Provide a stable technical base for application development, schema evolution, a
 
 **Current State**
 
-- [x] Next.js 14 App Router project is in place.
+- [x] Next.js App Router project is in place and now runs on Next.js 15 LTS.
 - [x] TypeScript, Tailwind CSS, Prisma, and PostgreSQL are configured.
 - [x] Core schema exists for users, assets, locations, racks, IPs, licenses, public IP ranges, and audit logs.
 - [x] Dockerfile and `docker-compose.yml` are present and the app container build succeeds.
@@ -310,7 +310,7 @@ Align the application experience with the original system design for visibility,
 
 ---
 
-## Milestone 8: Deployment & Production Readiness (65% Complete)
+## Milestone 8: Deployment & Production Readiness (95% Complete)
 
 **Goal**
 
@@ -323,11 +323,17 @@ Move from containerized development readiness to production-safe deployment and 
 - [x] Optional Nginx reverse proxy profile exists for direct DNS or upstream proxy deployment.
 - [x] Cloudflare Tunnel starter ingress config is documented.
 - [x] PostgreSQL backup and restore helpers exist.
+- [x] Scheduled backup profile, local retention pruning, and restore-drill helper exist.
 - [x] App and proxy healthchecks are implemented through a public database-backed health endpoint.
+- [x] Token-protected metrics endpoint exists for Prometheus-style scraping.
+- [x] Docker log rotation defaults are configured.
+- [x] Baseline app/proxy security headers are configured.
+- [x] Production runbook and validation script exist.
 - [x] Lint validation is now non-interactive through committed ESLint configuration.
-- [x] Next.js has been patched from `14.1.0` to the fixed `14.2.x` line for the December 2025 App Router advisory.
-- [ ] Production backup scheduling, off-host retention, and restore-drill evidence are still pending.
-- [ ] Log/metrics observability beyond Docker healthchecks is still pending.
+- [x] Next.js has been upgraded from the EOL 14.x line to supported `15.5.15` LTS with React 19.
+- [ ] Off-host backup replication and real production restore-drill evidence are still pending.
+- [ ] External log/metrics shipping to the selected monitoring platform is still pending.
+- [ ] The remaining moderate `next-auth` / `uuid` advisory requires an Auth.js major-version migration.
 - [x] Build-time dependence on Google Fonts fetching has been removed.
 - [x] Authenticated dashboard server rendering is explicitly dynamic to avoid static build assumptions around database-backed pages.
 - [ ] Production security review and hostname/TLS validation pass are still pending.
@@ -341,17 +347,21 @@ Move from containerized development readiness to production-safe deployment and 
 - [x] Production-ready persistent volume and storage strategy
 - [x] Backup and restore procedure
 - [x] Health checks
-- [ ] Observability setup for logs and metrics
+- [x] Observability setup for logs and metrics
+- [x] Scheduled backup and restore-drill tooling
+- [x] Production runbook and validation script
+- [x] Baseline security headers
 - [x] Build hardening against external font fetch dependency
 - [x] Build/runtime hardening against unavailable database during static optimization
 - [x] Non-interactive lint configuration
-- [x] Next.js 14.x security patch update
-- [ ] Security review and production validation pass
+- [x] Next.js 15 LTS / React 19 upgrade
+- [ ] Real-host TLS/security review and production validation pass
 
 **Exit Criteria**
 
 - The application can be deployed behind a stable ingress path.
 - Data persistence, recovery, health visibility, and build robustness are all documented and tested.
+- Remaining completion depends on environment-specific proof: production hostname, certificate files or tunnel credentials, off-host backup target, and monitoring destination.
 
 ---
 
@@ -411,7 +421,7 @@ Target deliverables:
 
 1. Validate the completed Products / Application dependency-mapping migration and CRUD flow in Docker.
 2. Continue UX hardening with authenticated browser regression passes for the completed dashboard/search/toast flows.
-3. Validate the production deployment profile on a real hostname with TLS.
+3. Validate the production deployment profile on a real hostname with TLS or Cloudflare Tunnel credentials.
 4. Tighten rack/location movement validation and large-table UX.
 5. Harden Docker-to-production deployment assumptions.
 
@@ -429,7 +439,8 @@ Target deliverables:
 - Static verification through local `npm` remains unavailable in the host shell PATH, but Docker build validation succeeds and runs the Next.js lint/type-check/build pipeline.
 - Milestone 8 now includes an unauthenticated `/api/health` endpoint, Compose healthchecks, optional Nginx proxy profile, Cloudflare Tunnel starter config, and PostgreSQL backup/restore helpers.
 - `npm run lint` now works non-interactively in Docker. Current lint output has three pre-existing React hook dependency warnings in asset/rack pages.
-- Production dependency audit improved after the Next.js 14.x patch, but still reports advisories requiring breaking Next.js/NextAuth upgrades.
+- Production dependency audit no longer reports the Next.js high-severity advisory after the Next.js 15 LTS upgrade. The remaining findings are the moderate `next-auth` / `uuid` chain that requires an Auth.js major-version migration.
+- Scheduled backups, retention pruning, restore drills, token-protected metrics, Docker log rotation, security headers, and a production validation runbook/script are now in place.
 
 ---
 

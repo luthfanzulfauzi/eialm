@@ -6,7 +6,7 @@ Enterprise Infrastructure & Asset Lifecycle Manager (EIALM) is an internal web a
 
 Last reviewed against the repository on April 23, 2026.
 
-- Next.js 14 App Router, TypeScript, Tailwind CSS, Prisma, PostgreSQL, NextAuth.js, Zustand, React Hook Form, Zod, Docker, and Docker Compose are in use.
+- Next.js 15 App Router, React 19, TypeScript, Tailwind CSS, Prisma, PostgreSQL, NextAuth.js, Zustand, React Hook Form, Zod, Docker, and Docker Compose are in use.
 - Authentication, RBAC, user management, password change, login timeout, and protected API/page access are implemented.
 - Dashboard summary cards, recent activity, expired/expiring license sections, repair-focused widgets, and operational notices are implemented.
 - Asset hardware CRUD, audit trail, CSV import/export, advanced asset filtering, pagination, placement validation, datacenter/warehouse CRUD, rack CRUD, warehouse storage views, rack utilization summaries, and cross-facility rack layout placement flows are implemented.
@@ -15,7 +15,7 @@ Last reviewed against the repository on April 23, 2026.
 - Products / Application is now a persisted module with product CRUD, configurable option catalogs, asset/license/IP/location relationships, compliance metadata, business owners, user-backed technical owners, advanced local filtering, pagination, dependency views, and toast feedback. The latest portfolio migrations have been validated in Docker.
 - Global search is implemented from the dashboard header with an authenticated cross-module API covering assets, licenses, IP addresses, products/applications, locations, racks, and maintenance records.
 - Settings includes password change, login timeout, and product dropdown catalog management.
-- Docker development/build support exists, uses a named PostgreSQL volume for runtime data, and no longer depends on external font fetching. Production readiness now includes an app/database health endpoint, Compose healthchecks, an optional Nginx reverse proxy profile, a Cloudflare Tunnel starter config, PostgreSQL backup/restore scripts, committed ESLint configuration, and a patched Next.js 14.x release. TLS automation, off-host backup retention, broader observability, and a production security validation pass remain pending.
+- Docker development/build support exists, uses a named PostgreSQL volume for runtime data, and no longer depends on external font fetching. Production readiness now includes an app/database health endpoint, token-protected metrics, Compose healthchecks, Docker log rotation defaults, an optional Nginx reverse proxy profile, a Cloudflare Tunnel starter config, PostgreSQL backup/restore/retention/restore-drill scripts, a scheduled backup Compose profile, committed ESLint configuration, baseline security headers, and a Next.js 15.5.15 LTS / React 19 runtime. Final hostname TLS installation, off-host backup replication, external observability hookup, and an Auth.js major-version migration remain pending.
 
 ## Product Goal
 
@@ -27,7 +27,8 @@ application should be deployed and tested in docker environment, and should acom
 Docker image should be efficient and lightweight
 
 You can use this tech stacks or you can suggest other stacks that more suitable
-•⁠  ⁠Next.js 14 (App Router)
+•⁠  ⁠Next.js 15 (App Router)
+•⁠  ⁠React 19
 •⁠  ⁠TypeScript
 •⁠  ⁠Tailwind CSS
 •⁠  ⁠Prisma ORM
@@ -128,15 +129,17 @@ prisma/
 - The default Compose stack runs PostgreSQL and the standalone Next.js app container.
 - `GET /api/health` is unauthenticated for container, proxy, and uptime probes; it verifies PostgreSQL reachability and returns `503` on database failure.
 - The optional `proxy` Compose profile runs Nginx in front of the app for direct DNS or upstream reverse-proxy deployments.
+- The app and Nginx apply baseline security headers for content type sniffing, framing, referrer policy, and browser permissions.
 - Cloudflare Tunnel can target the app service directly over `http://app:3000`; `deploy/cloudflare-tunnel.example.yml` documents the expected ingress shape.
-- PostgreSQL data persists in the `postgres-data` named volume. Logical backup and restore helpers live in `scripts/backup-postgres.sh` and `scripts/restore-postgres.sh`.
+- `GET /api/metrics` emits Prometheus text format when called with `OBSERVABILITY_TOKEN`.
+- PostgreSQL data persists in the `postgres-data` named volume. Logical backup, scheduled backup, pruning, restore, and restore-drill helpers live in `scripts/`.
 - Dashboard server rendering is explicitly dynamic so authenticated database-backed pages are not treated as static build artifacts.
 - `npm run lint` is now non-interactive through `.eslintrc.json`, and Docker validation runs against the Next.js lint/type/build pipeline.
-- Next.js is pinned to the patched 14.x line for the December 2025 App Router security advisory. Remaining npm audit findings require a breaking Next.js/NextAuth upgrade and should be handled as a dedicated security-hardening work cycle.
+- Next.js is upgraded to the supported 15.5 LTS line with React 19. Remaining npm audit findings are the moderate `next-auth` / `uuid` chain and require an Auth.js major-version migration.
 
 ## Remaining Design Gaps
 
 - Charts for asset distribution and health remain deferred until the dashboard metric layer is broader.
 - Unified toast notifications exist for core workflows and should continue replacing legacy inline banners or browser alerts as modules are revisited.
-- Production design still needs TLS certificate automation, off-host backup retention policy, restore-drill evidence, log/metric shipping, and dependency security hardening for advisories that require breaking upgrades.
+- Production design still needs final hostname TLS installation, off-host backup replication, external log/metric shipping, and the Auth.js major-version migration needed to clear the remaining moderate advisory chain.
 - Runtime data is kept out of source control through Git ignores, Docker ignores, and named Compose volumes.

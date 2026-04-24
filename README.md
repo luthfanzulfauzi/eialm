@@ -2,7 +2,7 @@
 
 Enterprise Infrastructure & Asset Lifecycle Manager (EIALM) is a modern web application for managing infrastructure assets, facilities, IP inventory, users, and operational lifecycle data.
 
-The project is built with Next.js 14, TypeScript, Prisma, PostgreSQL, NextAuth.js, Tailwind CSS, and Docker.
+The project is built with Next.js 15 LTS, React 19, TypeScript, Prisma, PostgreSQL, NextAuth.js, Tailwind CSS, and Docker.
 
 ## Current Status
 
@@ -39,7 +39,8 @@ The working roadmap is tracked in [milestones.md](./milestones.md).
 
 ## Tech Stack
 
-- Next.js 14 App Router
+- Next.js 15 App Router
+- React 19
 - TypeScript
 - Tailwind CSS
 - Prisma ORM
@@ -110,6 +111,7 @@ Create a local `.env` file from `.env.example`, or use the values below as a sta
 NEXTAUTH_SECRET=replace-with-a-long-random-secret
 NEXTAUTH_URL=http://localhost:3000
 CRON_SECRET=replace-with-a-long-random-secret
+OBSERVABILITY_TOKEN=replace-with-a-long-random-secret
 
 DATABASE_URL=postgresql://admin:password123@localhost:5432/eialm_db?schema=public
 NODE_ENV=development
@@ -151,7 +153,7 @@ The default Compose stack runs PostgreSQL and the Next.js app directly on port `
 docker compose --profile proxy up -d --build
 ```
 
-Nginx listens on `HTTP_PORT` and `HTTPS_PORT` from `.env` and forwards traffic to the app container. The included default config serves HTTP and exposes `/health`; mount certificates through `TLS_CERTS_DIR` and update `deploy/nginx/conf.d/eialm.conf` when terminating TLS inside Nginx.
+Nginx listens on `HTTP_PORT` and `HTTPS_PORT` from `.env` and forwards traffic to the app container. The included default config serves HTTP, forwards `/health` and `/metrics`, and applies baseline security headers. Mount certificates through `TLS_CERTS_DIR` and update `deploy/nginx/conf.d/eialm.conf` when terminating TLS inside Nginx.
 
 For Cloudflare Tunnel deployments, keep the app internal and point `cloudflared` at `http://app:3000`. A starter ingress file is available at `deploy/cloudflare-tunnel.example.yml`.
 
@@ -164,6 +166,15 @@ curl http://localhost:3000/api/health
 ```
 
 The endpoint verifies database connectivity and returns `503` when PostgreSQL is unavailable. Docker Compose uses this endpoint for the app healthcheck, and the Nginx profile maps it to `/health` for load balancers or uptime checks.
+
+The app also exposes token-protected Prometheus-style metrics:
+
+```bash
+curl -H "Authorization: Bearer $OBSERVABILITY_TOKEN" \
+  http://localhost:3000/api/metrics
+```
+
+The metrics endpoint returns `404` unless `OBSERVABILITY_TOKEN` is configured and supplied.
 
 ## Backup And Restore
 
@@ -180,6 +191,20 @@ Backups are written to `./backups` by default and are ignored by Git. Restore a 
 ```
 
 For production, copy backup files to storage outside the Docker host, protect them as sensitive data, and test restore into a non-production environment before relying on the procedure.
+
+Run scheduled local backups with retention pruning through the optional backup profile:
+
+```bash
+docker compose --profile backup up -d
+```
+
+Validate that a backup can be restored without replacing production data:
+
+```bash
+./scripts/restore-drill-postgres.sh
+```
+
+Operational deployment, backup, restore, metrics, and incident steps are documented in [docs/operations/production-runbook.md](./docs/operations/production-runbook.md).
 
 ## Default Admin Account
 
@@ -282,25 +307,29 @@ Current production-readiness coverage includes:
 - standalone Docker image build
 - container startup migrations and seed verification
 - app/database healthcheck endpoint
+- token-protected metrics endpoint
 - optional Nginx reverse proxy profile
 - starter Cloudflare Tunnel ingress example
-- PostgreSQL backup and restore scripts
+- PostgreSQL backup, scheduled backup, retention, and restore-drill scripts
+- Docker log rotation defaults
+- baseline security headers in Next.js and Nginx
+- production validation runbook and script
 - committed ESLint configuration for non-interactive lint validation
-- Next.js patched to the current 14.x security release recommended by the December 2025 App Router advisory
+- Next.js upgraded to 15.5.15 LTS with React 19 for continued supported security coverage
 
 There are still a few production-readiness concerns to address:
 
-- TLS certificate automation and final hostname-specific Nginx config
-- production backup scheduling, off-host retention, and restore drill validation
-- log/metrics shipping beyond Docker healthchecks
-- dependency security review for remaining advisories that require breaking framework/auth upgrades
+- final hostname-specific TLS certificate installation
+- off-host backup replication and retention
+- external log/metrics shipping to the chosen monitoring platform
+- Auth.js / NextAuth major-version migration to clear the remaining moderate `uuid` advisory chain
 - final deployment validation pass on the production hostname
 
 ## Known Gaps
 
 - Cross-module pagination/filter consistency and toast notifications are still pending outside the completed Asset Inventory core.
 - Richer dashboard repair widgets are still incomplete.
-- Production deployment needs security review, observability expansion, and real-host validation.
+- Production deployment needs breaking-upgrade security review, off-host retention, external observability hookup, and real-host validation.
 - `src/hooks/useDebounce.ts` and `src/components/ui/index.ts` appear unused in the current source tree.
 - The old `TECHNICAL_OWNER` product option path has a cleanup migration and was validated in local Docker.
 

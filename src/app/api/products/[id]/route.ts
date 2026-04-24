@@ -14,8 +14,9 @@ const formatProductError = (error: unknown) => {
 
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return new NextResponse("Unauthorized", { status: 401 });
@@ -27,7 +28,7 @@ export async function PATCH(
   try {
     const body = await req.json();
     const payload = productUpdateSchema.parse(body);
-    const product = await ProductService.updateProduct(params.id, payload);
+    const product = await ProductService.updateProduct(id, payload);
     return NextResponse.json(product);
   } catch (error) {
     console.error("Product PATCH Error:", error);
@@ -37,8 +38,9 @@ export async function PATCH(
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return new NextResponse("Unauthorized", { status: 401 });
@@ -48,7 +50,7 @@ export async function DELETE(
   }
 
   try {
-    await ProductService.deleteProduct(params.id);
+    await ProductService.deleteProduct(id);
     return new NextResponse(null, { status: 204 });
   } catch (error) {
     console.error("Product DELETE Error:", error);

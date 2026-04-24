@@ -91,8 +91,9 @@ const computeUtilization = (params: {
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return new NextResponse("Unauthorized", { status: 401 });
@@ -100,7 +101,7 @@ export async function GET(
 
   try {
     const rack = await prisma.rack.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         location: true,
         assets: {
@@ -148,8 +149,9 @@ export async function GET(
 
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session || session.user.role === "VIEWER") {
     return new NextResponse("Unauthorized", { status: 401 });
@@ -164,7 +166,7 @@ export async function PATCH(
     }
 
     const rack = await prisma.rack.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: { assets: true },
     });
 
@@ -185,7 +187,7 @@ export async function PATCH(
     }
 
     const updated = await prisma.rack.update({
-      where: { id: params.id },
+      where: { id },
       data: { totalUnits },
     });
 

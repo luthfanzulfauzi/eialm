@@ -70,7 +70,8 @@ function formatRangeError(error: any) {
   return NextResponse.json({ error: "Failed to update private range" }, { status: 400 });
 }
 
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const session = await requireManager();
   if (!session) {
     return new NextResponse("Forbidden", { status: 403 });
@@ -89,7 +90,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   }
 
   try {
-    const updated = await NetworkService.updatePrivateRange(params.id, parsed.data);
+    const updated = await NetworkService.updatePrivateRange(id, parsed.data);
     await writeAuditLog({
       action: "NETWORK_PRIVATE_RANGE_UPDATE",
       userId: session.user.id,
@@ -107,19 +108,20 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   }
 }
 
-export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const session = await requireManager();
   if (!session) {
     return new NextResponse("Forbidden", { status: 403 });
   }
 
   try {
-    await NetworkService.deletePrivateRange(params.id);
+    await NetworkService.deletePrivateRange(id);
     await writeAuditLog({
       action: "NETWORK_PRIVATE_RANGE_DELETE",
       userId: session.user.id,
       details: {
-        rangeId: params.id,
+        rangeId: id,
       },
     });
     return NextResponse.json({ ok: true });

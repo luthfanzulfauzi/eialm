@@ -23,8 +23,9 @@ const facesIntersect = (
 
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session || session.user.role === "VIEWER") {
     return new NextResponse("Unauthorized", { status: 401 });
@@ -46,7 +47,7 @@ export async function POST(
     }
 
     const rack = await prisma.rack.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: { id: true, locationId: true, totalUnits: true, name: true, location: { select: { name: true } } },
     });
 

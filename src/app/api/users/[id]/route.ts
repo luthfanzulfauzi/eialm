@@ -4,7 +4,8 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Role } from "@prisma/client";
 
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return new NextResponse("Unauthorized", { status: 401 });
@@ -25,12 +26,12 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     return NextResponse.json({ error: "Invalid role" }, { status: 400 });
   }
 
-  if (params.id === session.user.id && role !== "ADMIN") {
+  if (id === session.user.id && role !== "ADMIN") {
     return NextResponse.json({ error: "You cannot remove your own admin role" }, { status: 400 });
   }
 
   const user = await prisma.user.update({
-    where: { id: params.id },
+    where: { id },
     data: { role: role as Role },
     select: {
       id: true,
@@ -48,7 +49,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   return NextResponse.json(user);
 }
 
-export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return new NextResponse("Unauthorized", { status: 401 });
@@ -57,10 +59,10 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
     return new NextResponse("Forbidden: Admin access required", { status: 403 });
   }
 
-  if (params.id === session.user.id) {
+  if (id === session.user.id) {
     return NextResponse.json({ error: "You cannot delete your own account" }, { status: 400 });
   }
 
-  await prisma.user.delete({ where: { id: params.id } });
+  await prisma.user.delete({ where: { id } });
   return NextResponse.json({ ok: true });
 }
