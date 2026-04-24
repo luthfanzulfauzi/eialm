@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { LocationType } from "@prisma/client";
+import { writeAuditLog } from "@/lib/audit";
 
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
@@ -46,6 +47,17 @@ export async function POST(req: Request) {
         type: body.type, // DATACENTER or WAREHOUSE
         address: body.address,
       }
+    });
+
+    await writeAuditLog({
+      action: "FACILITY_CREATE",
+      userId: session.user.id,
+      details: {
+        locationId: location.id,
+        name: location.name,
+        type: location.type,
+        address: location.address,
+      },
     });
 
     return NextResponse.json(location);

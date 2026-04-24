@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { writeAuditLog } from "@/lib/audit";
 
 const computeUtilization = (params: {
   totalUnits: number;
@@ -159,40 +160,124 @@ export async function PATCH(
 
   try {
     const body = await req.json();
+    const name = typeof body.name === "string" ? body.name.trim() : undefined;
     const totalUnits = body.totalUnits;
 
-    if (typeof totalUnits !== "number" || !Number.isFinite(totalUnits) || totalUnits < 1) {
+    if (name !== undefined && name.length === 0) {
+      return NextResponse.json({ error: "Rack name is required" }, { status: 400 });
+    }
+
+    if (
+      totalUnits !== undefined &&
+      (typeof totalUnits !== "number" || !Number.isFinite(totalUnits) || totalUnits < 1)
+    ) {
       return NextResponse.json({ error: "totalUnits must be a positive number" }, { status: 400 });
     }
 
     const rack = await prisma.rack.findUnique({
       where: { id },
-      include: { assets: true },
+      include: { assets: true, location: { select: { id: true, name: true } } },
     });
 
     if (!rack) {
       return NextResponse.json({ error: "Rack not found" }, { status: 404 });
     }
 
-    const maxEndU = rack.assets.reduce((acc, a) => {
-      if (!a.rackUnitStart || !a.rackUnitSize) return acc;
-      return Math.max(acc, a.rackUnitStart + a.rackUnitSize - 1);
-    }, 0);
+    if (totalUnits !== undefined) {
+      const maxEndU = rack.assets.reduce((acc, a) => {
+        if (!a.rackUnitStart || !a.rackUnitSize) return acc;
+        return Math.max(acc, a.rackUnitStart + a.rackUnitSize - 1);
+      }, 0);
 
-    if (totalUnits < maxEndU) {
-      return NextResponse.json(
-        { error: `Cannot reduce rack to ${totalUnits}U because assets occupy up to U${maxEndU}` },
-        { status: 400 }
-      );
+      if (totalUnits < maxEndU) {
+        return NextResponse.json(
+          { error: `Cannot reduce rack to ${totalUnits}U because assets occupy up to U${maxEndU}` },
+          { status: 400 }
+        );
+      }
     }
 
     const updated = await prisma.rack.update({
       where: { id },
-      data: { totalUnits },
+      data: {
+        ...(name !== undefined ? { name } : {}),
+        ...(totalUnits !== undefined ? { totalUnits } : {}),
+      },
+    });
+
+    await writeAuditLog({
+      action: "RACK_UPDATE",
+      userId: session.user.id,
+      details: {
+        rackId: updated.id,
+        locationId: rack.location.id,
+        locationName: rack.location.name,
+        before: {
+          name: rack.name,
+          totalUnits: rack.totalUnits,
+        },
+        after: {
+          name: updated.name,
+          totalUnits: updated.totalUnits,
+        },
+      },
     });
 
     return NextResponse.json(updated);
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to update rack" }, { status: 400 });
+  } catch (error: any) {
+    if (error?.code === "P2002") {
+      return NextResponse.json({ error: "A rack with this name already exists in this datacenter" }, { status: 400 });
+    }
+    return NextResponse.json({ error: error?.message || "Failed to update rack" }, { status: 400 });
+  }
+}
+
+export async function DELETE(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const session = await getServerSession(authOptions);
+  if (!session || session.user.role === "VIEWER") {
+    return new NextResponse("Unauthorized", { status: 401 });
+  }
+
+  try {
+    const rack = await prisma.rack.findUnique({
+      where: { id },
+      include: {
+        location: { select: { id: true, name: true } },
+        _count: { select: { assets: true } },
+      },
+    });
+
+    if (!rack) {
+      return NextResponse.json({ error: "Rack not found" }, { status: 404 });
+    }
+
+    if (rack._count.assets > 0) {
+      return NextResponse.json(
+        { error: "Cannot delete a rack that still has assigned assets" },
+        { status: 400 }
+      );
+    }
+
+    await prisma.rack.delete({ where: { id } });
+
+    await writeAuditLog({
+      action: "RACK_DELETE",
+      userId: session.user.id,
+      details: {
+        rackId: rack.id,
+        name: rack.name,
+        totalUnits: rack.totalUnits,
+        locationId: rack.location.id,
+        locationName: rack.location.name,
+      },
+    });
+
+    return new NextResponse(null, { status: 204 });
+  } catch (error: any) {
+    return NextResponse.json({ error: error?.message || "Failed to delete rack" }, { status: 400 });
   }
 }

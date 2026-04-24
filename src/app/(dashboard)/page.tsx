@@ -50,6 +50,26 @@ type NetworkDetails = {
   status?: string;
 };
 
+type FacilityDetails = {
+  locationId?: string;
+  name?: string;
+  type?: string;
+  address?: string | null;
+  locationName?: string;
+  rackId?: string;
+  totalUnits?: number;
+  before?: {
+    name?: string;
+    address?: string | null;
+    totalUnits?: number;
+  };
+  after?: {
+    name?: string;
+    address?: string | null;
+    totalUnits?: number;
+  };
+};
+
 const safeParseJson = <T,>(value: string): T | null => {
   try {
     return JSON.parse(value) as T;
@@ -176,7 +196,8 @@ export default async function DashboardPage() {
     const asUpdate = safeParseJson<UpdateDetails>(log.details);
     const asDelete = safeParseJson<DeleteDetails>(log.details);
     const asNetwork = safeParseJson<NetworkDetails>(log.details);
-    return { log, asUpdate, asDelete, asNetwork };
+    const asFacility = safeParseJson<FacilityDetails>(log.details);
+    return { log, asUpdate, asDelete, asNetwork, asFacility };
   });
 
   const rackIds = new Set<string>();
@@ -231,8 +252,85 @@ export default async function DashboardPage() {
 
   const auditScope = (action: string) => {
     if (action.startsWith("NETWORK_")) return "Network Event";
+    if (action.startsWith("FACILITY_") || action.startsWith("RACK_")) return "Facility Event";
     if (["CREATE", "UPDATE", "MOVE", "DELETE"].includes(action)) return "Asset Event";
     return "Platform Event";
+  };
+
+  const formatFacilityEvent = (action: string, details: FacilityDetails | null) => {
+    const type =
+      action.startsWith("RACK_")
+        ? "Rack"
+        : details?.type === "WAREHOUSE"
+          ? "Warehouse"
+          : "Datacenter";
+
+    if (action === "FACILITY_CREATE") {
+      return {
+        title: `Created ${type.toLowerCase()} ${details?.name ?? "facility"}`,
+        details: details?.address ? `Address: ${details.address}` : undefined,
+      };
+    }
+
+    if (action === "FACILITY_UPDATE") {
+      const changes: string[] = [];
+      if (details?.before?.name !== details?.after?.name) {
+        changes.push(`Name: ${details?.before?.name ?? "—"} → ${details?.after?.name ?? "—"}`);
+      }
+      if (details?.before?.address !== details?.after?.address) {
+        changes.push(`Address: ${details?.before?.address ?? "—"} → ${details?.after?.address ?? "—"}`);
+      }
+      return {
+        title: `Updated ${type.toLowerCase()} ${details?.after?.name ?? details?.name ?? "facility"}`,
+        details: changes.join(" · ") || "Facility details updated",
+      };
+    }
+
+    if (action === "FACILITY_DELETE") {
+      return {
+        title: `Deleted ${type.toLowerCase()} ${details?.name ?? "facility"}`,
+        details: details?.address ? `Address: ${details.address}` : undefined,
+      };
+    }
+
+    if (action === "RACK_CREATE") {
+      return {
+        title: `Created rack ${details?.name ?? "rack"}`,
+        details: [details?.locationName ? `Site: ${details.locationName}` : null, typeof details?.totalUnits === "number" ? `Height: ${details.totalUnits}U` : null]
+          .filter(Boolean)
+          .join(" · "),
+      };
+    }
+
+    if (action === "RACK_UPDATE") {
+      const changes: string[] = [];
+      if (details?.before?.name !== details?.after?.name) {
+        changes.push(`Name: ${details?.before?.name ?? "—"} → ${details?.after?.name ?? "—"}`);
+      }
+      if (details?.before?.totalUnits !== details?.after?.totalUnits) {
+        changes.push(`Height: ${details?.before?.totalUnits ?? "—"}U → ${details?.after?.totalUnits ?? "—"}U`);
+      }
+      return {
+        title: `Updated rack ${details?.after?.name ?? details?.name ?? "rack"}`,
+        details: [details?.locationName ? `Site: ${details.locationName}` : null, changes.join(" · ") || null]
+          .filter(Boolean)
+          .join(" · "),
+      };
+    }
+
+    if (action === "RACK_DELETE") {
+      return {
+        title: `Deleted rack ${details?.name ?? "rack"}`,
+        details: [details?.locationName ? `Site: ${details.locationName}` : null, typeof details?.totalUnits === "number" ? `Height: ${details.totalUnits}U` : null]
+          .filter(Boolean)
+          .join(" · "),
+      };
+    }
+
+    return {
+      title: action,
+      details: undefined,
+    };
   };
 
   const formatNetworkEvent = (action: string, details: NetworkDetails | null) => {
@@ -345,13 +443,25 @@ export default async function DashboardPage() {
     };
   };
 
-  const items = parsed.map(({ log, asUpdate, asDelete, asNetwork }) => {
+  const items = parsed.map(({ log, asUpdate, asDelete, asNetwork, asFacility }) => {
     const by = log.user?.name ? `by ${log.user.name}` : null;
     const withBy = (details?: string) => (by ? (details ? `${details} · ${by}` : by) : details);
     const scope = auditScope(log.action);
 
     if (log.action.startsWith("NETWORK_")) {
       const formatted = formatNetworkEvent(log.action, asNetwork);
+      return {
+        id: log.id,
+        action: log.action,
+        scope,
+        title: formatted.title,
+        details: withBy(formatted.details || undefined),
+        createdAt: log.createdAt,
+      };
+    }
+
+    if (log.action.startsWith("FACILITY_") || log.action.startsWith("RACK_")) {
+      const formatted = formatFacilityEvent(log.action, asFacility);
       return {
         id: log.id,
         action: log.action,

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { writeAuditLog } from "@/lib/audit";
 
 export async function GET(
   req: Request,
@@ -69,12 +70,38 @@ export async function PATCH(
 
   try {
     const body = await req.json();
+    const existingLocation = await prisma.location.findUnique({
+      where: { id },
+      select: { id: true, name: true, type: true, address: true },
+    });
+
+    if (!existingLocation) {
+      return NextResponse.json({ error: "Location not found" }, { status: 404 });
+    }
+
     const updatedLocation = await prisma.location.update({
       where: { id },
       data: {
         name: body.name,
         address: body.address,
       }
+    });
+
+    await writeAuditLog({
+      action: "FACILITY_UPDATE",
+      userId: session.user.id,
+      details: {
+        locationId: updatedLocation.id,
+        type: updatedLocation.type,
+        before: {
+          name: existingLocation.name,
+          address: existingLocation.address,
+        },
+        after: {
+          name: updatedLocation.name,
+          address: updatedLocation.address,
+        },
+      },
     });
 
     return NextResponse.json(updatedLocation);
@@ -95,9 +122,28 @@ export async function DELETE(
   }
 
   try {
-    await prisma.location.delete({
-      where: { id }
+    const existingLocation = await prisma.location.findUnique({
+      where: { id },
+      select: { id: true, name: true, type: true, address: true },
     });
+
+    if (!existingLocation) {
+      return NextResponse.json({ error: "Location not found" }, { status: 404 });
+    }
+
+    await prisma.location.delete({ where: { id } });
+
+    await writeAuditLog({
+      action: "FACILITY_DELETE",
+      userId: session.user.id,
+      details: {
+        locationId: existingLocation.id,
+        name: existingLocation.name,
+        type: existingLocation.type,
+        address: existingLocation.address,
+      },
+    });
+
     return new NextResponse(null, { status: 204 });
   } catch (error) {
     return NextResponse.json({ error: "Cannot delete location with active assets" }, { status: 400 });

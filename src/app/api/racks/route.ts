@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { writeAuditLog } from "@/lib/audit";
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -28,7 +29,7 @@ export async function POST(req: Request) {
 
     const location = await prisma.location.findUnique({
       where: { id: body.locationId },
-      select: { type: true },
+      select: { id: true, name: true, type: true },
     });
 
     if (!location) {
@@ -46,6 +47,19 @@ export async function POST(req: Request) {
         totalUnits,
       }
     });
+
+    await writeAuditLog({
+      action: "RACK_CREATE",
+      userId: session.user.id,
+      details: {
+        rackId: rack.id,
+        name: rack.name,
+        totalUnits: rack.totalUnits,
+        locationId: location.id,
+        locationName: location.name,
+      },
+    });
+
     return NextResponse.json(rack);
   } catch (error: any) {
     if (error?.code === "P2002") {
