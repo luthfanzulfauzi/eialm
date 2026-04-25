@@ -5,7 +5,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { assetSchema, AssetFormValues } from "@/lib/validations/asset";
 import { AssetStatus, LocationType } from "@prisma/client";
 import { Loader2 } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
+import {
+  ASSET_SERIAL_NUMBER_NOT_AVAILABLE,
+  isAssetSerialNumberNotAvailable,
+} from "@/lib/utils";
 
 interface AssetFormProps {
   onSubmit: (data: AssetFormValues) => void;
@@ -15,6 +19,10 @@ interface AssetFormProps {
 }
 
 export const AssetForm = ({ onSubmit, initialData, locations, racks }: AssetFormProps) => {
+  const [serialNotAvailable, setSerialNotAvailable] = useState(() =>
+    isAssetSerialNumberNotAvailable(initialData?.serialNumber)
+  );
+
   const {
     register,
     handleSubmit,
@@ -23,7 +31,14 @@ export const AssetForm = ({ onSubmit, initialData, locations, racks }: AssetForm
     formState: { errors, isSubmitting },
   } = useForm<AssetFormValues>({
     resolver: zodResolver(assetSchema),
-    defaultValues: initialData || { status: 'PLAN' as AssetStatus },
+    defaultValues: initialData
+      ? {
+          ...initialData,
+          serialNumber: isAssetSerialNumberNotAvailable(initialData.serialNumber)
+            ? ASSET_SERIAL_NUMBER_NOT_AVAILABLE
+            : initialData.serialNumber,
+        }
+      : { status: 'PLAN' as AssetStatus },
   });
 
   const clearServerSpecs = () => {
@@ -87,9 +102,23 @@ export const AssetForm = ({ onSubmit, initialData, locations, racks }: AssetForm
           <label className="text-sm font-medium text-slate-400 uppercase tracking-wider text-[10px]">Serial Number</label>
           <input 
             {...register("serialNumber")}
-            className="w-full bg-[#0f1218] border border-slate-800 rounded-lg p-2.5 text-sm text-white focus:border-blue-500 outline-none transition-all"
-            placeholder="GH0188XX"
+            disabled={serialNotAvailable}
+            className="w-full bg-[#0f1218] border border-slate-800 rounded-lg p-2.5 text-sm text-white focus:border-blue-500 outline-none transition-all disabled:opacity-60"
+            placeholder={serialNotAvailable ? ASSET_SERIAL_NUMBER_NOT_AVAILABLE : "GH0188XX"}
           />
+          <label className="flex items-center gap-2 text-[11px] text-slate-400">
+            <input
+              type="checkbox"
+              checked={serialNotAvailable}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                setSerialNotAvailable(checked);
+                setValue("serialNumber", checked ? ASSET_SERIAL_NUMBER_NOT_AVAILABLE : "");
+              }}
+              className="h-3.5 w-3.5 rounded border border-slate-700 bg-slate-900 text-blue-500 focus:ring-blue-500"
+            />
+            Serial number unavailable
+          </label>
           {errors.serialNumber && <p className="text-[10px] text-red-500">{errors.serialNumber.message}</p>}
         </div>
       </div>

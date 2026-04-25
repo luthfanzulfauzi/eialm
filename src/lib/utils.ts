@@ -1,6 +1,9 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
+export const ASSET_SERIAL_NUMBER_NOT_AVAILABLE = "N/A";
+const ASSET_SERIAL_NUMBER_NA_PREFIX = "__NA__:";
+
 /**
  * Utility for merging Tailwind CSS classes safely, 
  * resolving conflicts between base styles and conditional overrides.
@@ -36,4 +39,19 @@ export function formatCurrency(amount: number) {
     style: 'currency',
     currency: 'USD',
   }).format(amount);
+}
+
+export function isAssetSerialNumberNotAvailable(value: string | null | undefined) {
+  if (typeof value !== "string") return false;
+  const normalized = value.trim();
+  return normalized.toUpperCase() === ASSET_SERIAL_NUMBER_NOT_AVAILABLE || normalized.startsWith(ASSET_SERIAL_NUMBER_NA_PREFIX);
+}
+
+export function formatAssetSerialNumber(value: string | null | undefined) {
+  if (!value) return "—";
+  return isAssetSerialNumberNotAvailable(value) ? ASSET_SERIAL_NUMBER_NOT_AVAILABLE : value;
+}
+
+export function createAssetSerialNumberNotAvailableValue() {
+  return `${ASSET_SERIAL_NUMBER_NA_PREFIX}${crypto.randomUUID()}`;
 }

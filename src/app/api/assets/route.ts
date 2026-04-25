@@ -10,6 +10,9 @@ const formatAssetError = (error: unknown) => {
   if (typeof message === "string" && message.includes("does not exist in the current database")) {
     return "Database schema is out of date. Run Prisma migrate/db push, then restart the server.";
   }
+  if (typeof message === "string" && message.includes("Unique constraint failed") && message.includes("serialNumber")) {
+    return "Serial number already exists. Use a different serial number, or mark it as N/A if the asset has no serial.";
+  }
   return message;
 };
 

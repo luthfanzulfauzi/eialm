@@ -1,6 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import { AssetStatus, Prisma, LocationType } from "@prisma/client";
 import { AssetFormValues } from "@/lib/validations/asset";
+import {
+  ASSET_SERIAL_NUMBER_NOT_AVAILABLE,
+  createAssetSerialNumberNotAvailableValue,
+  isAssetSerialNumberNotAvailable,
+} from "@/lib/utils";
 
 const PAGE_SIZE = 10;
 
@@ -40,6 +45,18 @@ const sanitizeAssetInput = (data: AssetFormValues) => ({
   diskDataNumber: normalizeInt(data.diskDataNumber),
   diskDataSize: normalizeInt(data.diskDataSize),
 });
+
+const resolvePersistedSerialNumber = (inputSerialNumber: string, existingSerialNumber?: string | null) => {
+  if (!isAssetSerialNumberNotAvailable(inputSerialNumber)) {
+    return inputSerialNumber.trim();
+  }
+
+  if (existingSerialNumber && isAssetSerialNumberNotAvailable(existingSerialNumber)) {
+    return existingSerialNumber;
+  }
+
+  return createAssetSerialNumberNotAvailableValue();
+};
 
 const resolvePlacement = async (
   tx: Prisma.TransactionClient,
@@ -158,7 +175,11 @@ export const AssetService = {
 
   async createAsset(data: AssetFormValues, userId: string) {
     return await prisma.$transaction(async (tx: any) => {
-      const assetData = await resolvePlacement(tx, sanitizeAssetInput(data));
+      const sanitizedInput = sanitizeAssetInput(data);
+      const assetData = await resolvePlacement(tx, {
+        ...sanitizedInput,
+        serialNumber: resolvePersistedSerialNumber(sanitizedInput.serialNumber),
+      });
       const asset = await tx.asset.create({
         data: {
           ...assetData,
@@ -166,7 +187,7 @@ export const AssetService = {
             create: {
               action: 'CREATE',
               userId: userId,
-              details: `Initial entry created with status: ${assetData.status}`
+              details: `Initial entry created with status: ${assetData.status}${isAssetSerialNumberNotAvailable(sanitizedInput.serialNumber) ? ` and serial number ${ASSET_SERIAL_NUMBER_NOT_AVAILABLE}` : ""}`
             }
           }
         }
@@ -191,7 +212,11 @@ export const AssetService = {
       });
 
       if (!existing) throw new Error("Asset not found");
-      const assetData = await resolvePlacement(tx, sanitizeAssetInput(data));
+      const sanitizedInput = sanitizeAssetInput(data);
+      const assetData = await resolvePlacement(tx, {
+        ...sanitizedInput,
+        serialNumber: resolvePersistedSerialNumber(sanitizedInput.serialNumber, existing.serialNumber),
+      });
 
       const updated = await tx.asset.update({
         where: { id: assetId },

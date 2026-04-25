@@ -2,6 +2,7 @@
 
 import { ChevronDown, MoreHorizontal, Server } from "lucide-react";
 import { Fragment, type ReactNode, useEffect, useState } from "react";
+import { formatAssetSerialNumber } from "@/lib/utils";
 
 type ExtendedAsset = {
   id: string;
@@ -133,7 +134,7 @@ export const AssetTable = ({
                             />
                           </button>
                         </div>
-                        <div className="text-xs text-slate-500">{asset.serialNumber}</div>
+                        <div className="text-xs text-slate-500">{formatAssetSerialNumber(asset.serialNumber)}</div>
                       </div>
                     </div>
                   </td>
@@ -206,7 +207,7 @@ export const AssetTable = ({
                             {title("Asset Details")}
                             <div className="grid grid-cols-1 gap-3">
                               {item("Name", <span className="text-slate-100">{fmt(asset.name)}</span>)}
-                              {item("Serial Number", <span className="text-slate-100">{fmt(asset.serialNumber)}</span>)}
+                              {item("Serial Number", <span className="text-slate-100">{formatAssetSerialNumber(asset.serialNumber)}</span>)}
                               {item("Category", fmt(asset.category))}
                               {item("Status", fmt(asset.status))}
                             </div>

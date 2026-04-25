@@ -9,6 +9,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { AssetFormValues } from "@/lib/validations/asset";
 import { useRole } from "@/hooks/useRole";
 import { useToast } from "@/providers/toast-provider";
+import { formatAssetSerialNumber } from "@/lib/utils";
 
 /**
  * Inner component that uses dynamic hooks like useSearchParams.
@@ -142,7 +143,7 @@ function HardwareContent() {
 
   const handleDelete = async (asset: any) => {
     if (!asset?.id) return;
-    const ok = window.confirm(`Delete asset "${asset.name}" (${asset.serialNumber})?`);
+    const ok = window.confirm(`Delete asset "${asset.name}" (${formatAssetSerialNumber(asset.serialNumber)})?`);
     if (!ok) return;
 
     try {

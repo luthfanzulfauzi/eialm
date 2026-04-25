@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { toCsv } from "@/lib/csv";
+import { formatAssetSerialNumber } from "@/lib/utils";
 import type { AssetStatus, LocationType } from "@prisma/client";
 
 const assetStatuses = new Set(["PLAN", "PURCHASED", "INSTALLING", "ACTIVE", "MAINTENANCE", "BROKEN", "DECOMMISSIONED"]);
@@ -92,7 +93,7 @@ export async function GET(req: Request) {
 
     return [
     a.name,
-    a.serialNumber,
+    formatAssetSerialNumber(a.serialNumber),
     a.category,
     a.status,
     locationType,
