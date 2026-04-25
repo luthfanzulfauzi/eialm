@@ -5,7 +5,7 @@ WORKDIR /app
 
 COPY package.json package-lock.json* pnpm-lock.yaml* ./
 # Prisma needs scripts to initialize engines properly
-RUN npm install
+RUN npm ci
 
 # Stage 2: Builder
 FROM node:20-alpine AS builder

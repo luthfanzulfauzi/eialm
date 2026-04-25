@@ -6,8 +6,7 @@ const nextConfig = {
   // FORCE Next.js to include these modules in the standalone/node_modules folder
   outputFileTracingIncludes: {
     '/*': [
-      './node_modules/bcryptjs/**/*',
-      './node_modules/tsx/**/*'
+      './node_modules/bcryptjs/**/*'
     ],
   },
 
