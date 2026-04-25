@@ -5,6 +5,7 @@ import { AuditTrail } from "@/components/dashboard/AuditTrail";
 import { AlertTriangle, Bell, CalendarClock, Globe, Key, Server, ShieldAlert, Wrench } from "lucide-react";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { formatAssetSerialNumber, isAssetSerialNumberNotAvailable } from "@/lib/utils";
 import { LicenseService } from "@/services/licenseService";
 
 type UpdateDetails = {
@@ -241,6 +242,17 @@ export default async function DashboardPage() {
 
   const toTitleCase = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
 
+  const displaySerialNumber = (value?: string | null) => {
+    if (!value) return null;
+    return formatAssetSerialNumber(value);
+  };
+
+  const withSerialNumber = (name: string, serialNumber?: string | null) => {
+    if (!serialNumber || isAssetSerialNumberNotAvailable(serialNumber)) return name;
+    const displayValue = displaySerialNumber(serialNumber);
+    return displayValue ? `${name} (${displayValue})` : name;
+  };
+
   const formatEnum = (value?: string | null) => {
     if (!value) return null;
     return value
@@ -419,7 +431,7 @@ export default async function DashboardPage() {
     if (moved) {
       return {
         isMovement: true,
-        title: `Moved ${name}${serialNumber ? ` (${serialNumber})` : ""}`,
+        title: `Moved ${withSerialNumber(name, serialNumber)}`,
         details: `${fromPlacement} → ${toPlacement}${statusChanged ? ` · Status: ${toTitleCase(before.status!)} → ${toTitleCase(after.status!)}` : ""}`,
       };
     }
@@ -433,12 +445,12 @@ export default async function DashboardPage() {
 
     pushIfChanged("Status", before.status ?? null, after.status ?? null);
     pushIfChanged("Name", before.name ?? null, after.name ?? null);
-    pushIfChanged("Serial", before.serialNumber ?? null, after.serialNumber ?? null);
+    pushIfChanged("Serial", displaySerialNumber(before.serialNumber ?? null), displaySerialNumber(after.serialNumber ?? null));
     pushIfChanged("Category", before.category ?? null, after.category ?? null);
 
     return {
       isMovement: false,
-      title: `Updated ${name}${serialNumber ? ` (${serialNumber})` : ""}`,
+      title: `Updated ${withSerialNumber(name, serialNumber)}`,
       details: changes.length ? changes.join(" · ") : "Details updated",
     };
   };
@@ -479,7 +491,7 @@ export default async function DashboardPage() {
         id: log.id,
         action: log.action,
         scope,
-        title: `Moved ${name}${serialNumber ? ` (${serialNumber})` : ""}`,
+        title: `Moved ${withSerialNumber(name, serialNumber)}`,
         details: withBy(log.details),
         createdAt: log.createdAt,
       };
@@ -492,7 +504,7 @@ export default async function DashboardPage() {
         id: log.id,
         action: log.action,
         scope,
-        title: `Created ${name}${serialNumber ? ` (${serialNumber})` : ""}`,
+        title: `Created ${withSerialNumber(name, serialNumber)}`,
         details: withBy(log.details),
         createdAt: log.createdAt,
       };
@@ -505,7 +517,7 @@ export default async function DashboardPage() {
         id: log.id,
         action: log.action,
         scope,
-        title: `Deleted ${name}${serialNumber ? ` (${serialNumber})` : ""}`,
+        title: `Deleted ${withSerialNumber(name, serialNumber)}`,
         details: withBy(asDelete?.category ? `Category: ${asDelete.category}` : undefined),
         createdAt: log.createdAt,
       };
