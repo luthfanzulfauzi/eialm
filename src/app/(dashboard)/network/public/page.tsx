@@ -464,35 +464,37 @@ export default function PublicIPPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h1 className="flex items-center gap-3 text-2xl font-bold text-white">
-            <Globe className="text-blue-400" /> Public IP Management
-          </h1>
-          <p className="text-sm text-slate-500">
-            Manage externally routable address inventory, managed ranges, and assignments for hardware, VMs, or other consumers.
-          </p>
-        </div>
-
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
-            <input
-              type="text"
-              placeholder="Search IP, status, VM, hardware..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-lg border border-slate-800 bg-slate-900 pl-10 pr-4 py-2 text-sm text-white outline-none transition-all focus:border-blue-500 sm:w-72"
-            />
+      <section className="rounded-3xl border border-slate-800 bg-[radial-gradient(circle_at_top_left,_rgba(245,158,11,0.13),_transparent_28%),linear-gradient(180deg,_rgba(15,23,42,0.94),_rgba(8,11,18,0.96))] p-8 shadow-2xl">
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+          <div className="max-w-3xl space-y-3">
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight text-white">Public IP Management</h1>
+              <p className="mt-2 text-sm leading-6 text-slate-300">
+                Manage externally routable address inventory, managed ranges, and assignments for hardware, VMs, or other consumers.
+              </p>
+            </div>
           </div>
-          <Button variant="outline" onClick={() => fetchInventory(true)} disabled={loading || refreshing}>
-            <RefreshCw size={16} className={cn("mr-2", refreshing && "animate-spin")} /> Refresh
-          </Button>
-          <Button onClick={() => canManage && openCreateRangeModal()} disabled={!canManage}>
-            <Plus size={18} className="mr-2" /> Add Public IP Range
-          </Button>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+              <input
+                type="text"
+                placeholder="Search IP, status, VM, hardware..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full rounded-lg border border-slate-800 bg-slate-900 pl-10 pr-4 py-2 text-sm text-white outline-none transition-all focus:border-blue-500 sm:w-72"
+              />
+            </div>
+            <Button variant="outline" onClick={() => fetchInventory(true)} disabled={loading || refreshing}>
+              <RefreshCw size={16} className={cn("mr-2", refreshing && "animate-spin")} /> Refresh
+            </Button>
+            <Button onClick={() => canManage && openCreateRangeModal()} disabled={!canManage}>
+              <Plus size={18} className="mr-2" /> Add Public IP Range
+            </Button>
+          </div>
         </div>
-      </div>
+      </section>
 
       {banner && (
         <div

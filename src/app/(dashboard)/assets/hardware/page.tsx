@@ -215,106 +215,112 @@ function HardwareContent() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Hardware Inventory</h1>
-          <p className="text-slate-500 text-sm">Manage physical infrastructure and equipment</p>
-        </div>
-        
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
-            <input 
-              type="text" 
-              placeholder="Search SN or Name..." 
-              defaultValue={searchParams.get("q") || ""}
-              onChange={(e) => setQueryParam("q", e.target.value)}
-              className="bg-slate-900 border border-slate-800 rounded-lg pl-10 pr-4 py-2 text-sm outline-none focus:border-blue-500 w-64 text-white"
-            />
+      <section className="rounded-3xl border border-slate-800 bg-[radial-gradient(circle_at_top_left,_rgba(245,158,11,0.13),_transparent_28%),linear-gradient(180deg,_rgba(15,23,42,0.94),_rgba(8,11,18,0.96))] p-8 shadow-2xl">
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+          <div className="max-w-3xl space-y-3">
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight text-white">Hardware Inventory</h1>
+              <p className="mt-2 text-sm leading-6 text-slate-300">
+                Manage physical infrastructure and equipment across datacenters, warehouses, and rack placement workflows.
+              </p>
+            </div>
           </div>
-          
-          <select
-            value={searchParams.get("cat") || ""}
-            onChange={(e) => setQueryParam("cat", e.target.value)}
-            className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500 text-white"
-            aria-label="Filter by category"
-          >
-            <option value="">All categories</option>
-            <option value="Server">Server</option>
-            <option value="Network Device">Network Device</option>
-            <option value="Cable">Cable</option>
-            <option value="Other">Other</option>
-          </select>
 
-          <select
-            value={searchParams.get("status") || ""}
-            onChange={(e) => setQueryParam("status", e.target.value)}
-            className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500 text-white"
-            aria-label="Filter by status"
-          >
-            <option value="">All statuses</option>
-            {['PLAN', 'PURCHASED', 'INSTALLING', 'ACTIVE', 'MAINTENANCE', 'BROKEN', 'DECOMMISSIONED'].map((status) => (
-              <option key={status} value={status}>{status}</option>
-            ))}
-          </select>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+              <input 
+                type="text" 
+                placeholder="Search SN or Name..." 
+                defaultValue={searchParams.get("q") || ""}
+                onChange={(e) => setQueryParam("q", e.target.value)}
+                className="w-64 rounded-lg border border-slate-800 bg-slate-900 pl-10 pr-4 py-2 text-sm text-white outline-none transition-all focus:border-blue-500"
+              />
+            </div>
+            
+            <select
+              value={searchParams.get("cat") || ""}
+              onChange={(e) => setQueryParam("cat", e.target.value)}
+              className="rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
+              aria-label="Filter by category"
+            >
+              <option value="">All categories</option>
+              <option value="Server">Server</option>
+              <option value="Network Device">Network Device</option>
+              <option value="Cable">Cable</option>
+              <option value="Other">Other</option>
+            </select>
 
-          <select
-            value={searchParams.get("type") || ""}
-            onChange={(e) => setQueryParam("type", e.target.value)}
-            className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500 text-white"
-            aria-label="Filter by location type"
-          >
-            <option value="">All locations</option>
-            <option value="DATACENTER">Datacenter</option>
-            <option value="WAREHOUSE">Warehouse</option>
-          </select>
+            <select
+              value={searchParams.get("status") || ""}
+              onChange={(e) => setQueryParam("status", e.target.value)}
+              className="rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
+              aria-label="Filter by status"
+            >
+              <option value="">All statuses</option>
+              {['PLAN', 'PURCHASED', 'INSTALLING', 'ACTIVE', 'MAINTENANCE', 'BROKEN', 'DECOMMISSIONED'].map((status) => (
+                <option key={status} value={status}>{status}</option>
+              ))}
+            </select>
 
-          <select
-            value={searchParams.get("rackState") || ""}
-            onChange={(e) => setQueryParam("rackState", e.target.value)}
-            className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500 text-white"
-            aria-label="Filter by rack state"
-          >
-            <option value="">All rack states</option>
-            <option value="RACKED">Racked</option>
-            <option value="UNRACKED">Stored / unracked</option>
-            <option value="UNASSIGNED">Unassigned</option>
-          </select>
+            <select
+              value={searchParams.get("type") || ""}
+              onChange={(e) => setQueryParam("type", e.target.value)}
+              className="rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
+              aria-label="Filter by location type"
+            >
+              <option value="">All locations</option>
+              <option value="DATACENTER">Datacenter</option>
+              <option value="WAREHOUSE">Warehouse</option>
+            </select>
 
-          <button
-            onClick={handleExport}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-800 rounded-lg text-sm border border-slate-700 hover:bg-slate-700 transition-colors"
-          >
-            <Download size={16} />
-            Export
-          </button>
+            <select
+              value={searchParams.get("rackState") || ""}
+              onChange={(e) => setQueryParam("rackState", e.target.value)}
+              className="rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
+              aria-label="Filter by rack state"
+            >
+              <option value="">All rack states</option>
+              <option value="RACKED">Racked</option>
+              <option value="UNRACKED">Stored / unracked</option>
+              <option value="UNASSIGNED">Unassigned</option>
+            </select>
 
-          <button
-            onClick={() => {
-              setImportResult(null);
-              setImportFile(null);
-              setShowImportModal(true);
-            }}
-            disabled={isViewer}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-800 rounded-lg text-sm border border-slate-700 hover:bg-slate-700 transition-colors disabled:opacity-40"
-          >
-            <Upload size={16} />
-            Import
-          </button>
+            <button
+              onClick={handleExport}
+              className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 text-sm transition-colors hover:bg-slate-700"
+            >
+              <Download size={16} />
+              Export
+            </button>
 
-          <button 
-            onClick={() => {
-              if (isViewer) return;
-              setShowCreateModal(true);
-            }}
-            disabled={isViewer}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold transition-all shadow-lg shadow-blue-500/20 disabled:opacity-40 disabled:pointer-events-none"
-          >
-            <Plus size={18} />
-            Add Asset
-          </button>
+            <button
+              onClick={() => {
+                setImportResult(null);
+                setImportFile(null);
+                setShowImportModal(true);
+              }}
+              disabled={isViewer}
+              className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 text-sm transition-colors hover:bg-slate-700 disabled:opacity-40"
+            >
+              <Upload size={16} />
+              Import
+            </button>
+
+            <button 
+              onClick={() => {
+                if (isViewer) return;
+                setShowCreateModal(true);
+              }}
+              disabled={isViewer}
+              className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white transition-all shadow-lg shadow-blue-500/20 hover:bg-blue-700 disabled:pointer-events-none disabled:opacity-40"
+            >
+              <Plus size={18} />
+              Add Asset
+            </button>
+          </div>
         </div>
-      </div>
+      </section>
 
       {loading ? (
         <div className="py-20 text-center text-slate-500 animate-pulse">Scanning inventory...</div>

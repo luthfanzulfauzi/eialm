@@ -347,26 +347,30 @@ export default function LicensePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-white">License Manager</h1>
-          <p className="text-sm text-slate-500">
-            Manage software keys, assignment coverage, and expiration risk from one operational view.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" onClick={() => void fetchLicenses(true)} disabled={refreshing || loading}>
-            {refreshing ? <Loader2 size={16} className="mr-2 animate-spin" /> : null}
-            Refresh
-          </Button>
-          {canManage && (
-            <Button onClick={openCreateModal}>
-              <Plus size={16} className="mr-2" />
-              Add License
+      <section className="rounded-3xl border border-slate-800 bg-[radial-gradient(circle_at_top_left,_rgba(245,158,11,0.13),_transparent_28%),linear-gradient(180deg,_rgba(15,23,42,0.94),_rgba(8,11,18,0.96))] p-8 shadow-2xl">
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+          <div className="max-w-3xl space-y-3">
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight text-white">License Manager</h1>
+              <p className="mt-2 text-sm leading-6 text-slate-300">
+                Manage software keys, assignment coverage, and expiration risk from one operational view.
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button variant="outline" onClick={() => void fetchLicenses(true)} disabled={refreshing || loading}>
+              {refreshing ? <Loader2 size={16} className="mr-2 animate-spin" /> : null}
+              Refresh
             </Button>
-          )}
+            {canManage && (
+              <Button onClick={openCreateModal}>
+                <Plus size={16} className="mr-2" />
+                Add License
+              </Button>
+            )}
+          </div>
         </div>
-      </div>
+      </section>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {stats.map((stat) => {

@@ -163,26 +163,32 @@ export default function UserManagementPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-end">
-        <div>
-          <h1 className="text-3xl font-bold text-white">User Management Center</h1>
-          <p className="text-slate-500">Manage administrative roles and technical access tiers</p>
+      <section className="rounded-3xl border border-slate-800 bg-[radial-gradient(circle_at_top_left,_rgba(245,158,11,0.13),_transparent_28%),linear-gradient(180deg,_rgba(15,23,42,0.94),_rgba(8,11,18,0.96))] p-8 shadow-2xl">
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+          <div className="max-w-3xl space-y-3">
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight text-white">User Management Center</h1>
+              <p className="mt-2 text-sm leading-6 text-slate-300">
+                Manage administrative roles, technical access tiers, and active user coverage from one control surface.
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <button className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-medium transition-colors hover:bg-slate-700">
+              <Download size={16} /> Export Audit Log
+            </button>
+            <button
+              onClick={() => {
+                setCreateError(null);
+                setShowCreateModal(true);
+              }}
+              className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold transition-all shadow-lg shadow-blue-500/20 hover:bg-blue-700"
+            >
+              <UserPlus size={16} /> Create User
+            </button>
+          </div>
         </div>
-        <div className="flex gap-3">
-          <button className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors border border-slate-700">
-            <Download size={16} /> Export Audit Log
-          </button>
-          <button
-            onClick={() => {
-              setCreateError(null);
-              setShowCreateModal(true);
-            }}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-bold transition-all shadow-lg shadow-blue-500/20"
-          >
-            <UserPlus size={16} /> Create User
-          </button>
-        </div>
-      </div>
+      </section>
 
       <div className="bg-[#151921] border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
         <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900/20">
