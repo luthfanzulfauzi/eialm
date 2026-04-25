@@ -3,6 +3,7 @@ import { twMerge } from "tailwind-merge";
 
 export const ASSET_SERIAL_NUMBER_NOT_AVAILABLE = "N/A";
 const ASSET_SERIAL_NUMBER_NA_PREFIX = "__NA__:";
+const ASSET_SERIAL_NUMBER_NA_PREFIX_LEGACY = /^_+NA_+:?/i;
 
 /**
  * Utility for merging Tailwind CSS classes safely, 
@@ -44,7 +45,11 @@ export function formatCurrency(amount: number) {
 export function isAssetSerialNumberNotAvailable(value: string | null | undefined) {
   if (typeof value !== "string") return false;
   const normalized = value.trim();
-  return normalized.toUpperCase() === ASSET_SERIAL_NUMBER_NOT_AVAILABLE || normalized.startsWith(ASSET_SERIAL_NUMBER_NA_PREFIX);
+  return (
+    normalized.toUpperCase() === ASSET_SERIAL_NUMBER_NOT_AVAILABLE ||
+    normalized.startsWith(ASSET_SERIAL_NUMBER_NA_PREFIX) ||
+    ASSET_SERIAL_NUMBER_NA_PREFIX_LEGACY.test(normalized)
+  );
 }
 
 export function formatAssetSerialNumber(value: string | null | undefined) {

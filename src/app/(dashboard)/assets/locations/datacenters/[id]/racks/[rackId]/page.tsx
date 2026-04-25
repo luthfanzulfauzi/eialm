@@ -7,6 +7,7 @@ import { ArrowLeft, Box, Layers, Loader2, Plus, Save, Trash2 } from "lucide-reac
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/Modal";
+import { formatAssetSerialNumber } from "@/lib/utils";
 import { useRole } from "@/hooks/useRole";
 
 type RackFace = "FRONT" | "BACK" | "BOTH";
@@ -58,6 +59,34 @@ const faceLabel = (f: RackFace) => {
   if (f === "FRONT") return "Front";
   if (f === "BACK") return "Back";
   return "Both";
+};
+
+const rackAssetSecondaryLabel = (serialNumber: string, ip?: string | null) =>
+  ip ? `IP: ${ip}` : formatAssetSerialNumber(serialNumber);
+
+const getRackAssetCardLayout = (rawHeight: number) => {
+  const cardHeight = Math.max(rawHeight - 2, unitPx - 2);
+  const compact = cardHeight <= 24;
+
+  return {
+    cardHeight,
+    compact,
+    padding: compact
+      ? "0 10px"
+      : `${Math.max(3, Math.min(8, Math.floor(cardHeight * 0.14)))}px 12px`,
+    contentClassName: compact ? "flex h-full items-center gap-2" : "flex h-full flex-col justify-center",
+    contentStyle: compact
+      ? undefined
+      : { gap: `${Math.max(1, Math.min(4, Math.floor(cardHeight * 0.06)))}px` },
+    titleStyle: {
+      fontSize: `${compact ? 14 : Math.max(12, Math.min(16, Math.floor(cardHeight * 0.32)))}px`,
+      lineHeight: compact ? "1" : "1.1",
+    },
+    secondaryStyle: {
+      fontSize: `${compact ? 11 : Math.max(10, Math.min(12, Math.floor(cardHeight * 0.24)))}px`,
+      lineHeight: compact ? "1" : "1.1",
+    },
+  };
 };
 
 const isAssetInFace = (asset: RackAsset, face: "FRONT" | "BACK") => {
@@ -449,7 +478,7 @@ export default function RackLayoutDesignerPage() {
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <div className="text-white font-bold text-sm">{a.name}</div>
-                        <div className="text-slate-500 text-xs">{a.serialNumber}</div>
+                        <div className="text-slate-500 text-xs">{formatAssetSerialNumber(a.serialNumber)}</div>
                         <div className="text-slate-400 text-xs mt-1">
                           {a.category} •{" "}
                           {isInThisRack
@@ -655,6 +684,7 @@ export default function RackLayoutDesignerPage() {
                         const height = (a as any).size * unitPx;
                         const ip = ((a as any).ips || []).find((x: any) => !x.isPublic)?.address;
                         const aFace = ((a as any).rackFace ?? "FRONT") as RackFace;
+                        const layout = getRackAssetCardLayout(height);
 
                         return (
                           <button
@@ -673,16 +703,30 @@ export default function RackLayoutDesignerPage() {
                               setPlacementFace(aFace);
                             }}
                             className={[
-                              "absolute left-2 right-2 rounded-xl border text-left px-3 py-2",
+                              "absolute left-2 right-2 overflow-hidden rounded-xl border text-left",
                               selectedAssetId === (a as any).id
                                 ? "border-blue-500 bg-blue-600/20"
                                 : "border-slate-700 bg-slate-900/60 hover:bg-slate-900/80",
                             ].join(" ")}
-                            style={{ top, height }}
+                            style={{
+                              top: top + 1,
+                              height: layout.cardHeight,
+                              padding: layout.padding,
+                            }}
                           >
-                            <div className="text-white font-bold text-sm truncate">{(a as any).name}</div>
-                            <div className="text-slate-400 text-xs truncate">
-                              {ip ? `IP: ${ip}` : (a as any).serialNumber} • U{(a as any).start}-U{(a as any).end} • {faceLabel(aFace)}
+                            <div className={layout.contentClassName} style={layout.contentStyle}>
+                              <div className="truncate font-bold text-white" style={layout.titleStyle}>
+                                {(a as any).name}
+                              </div>
+                              {layout.compact ? (
+                                <div className="truncate text-slate-400" style={layout.secondaryStyle}>
+                                  U{(a as any).start}
+                                </div>
+                              ) : (
+                                <div className="truncate text-slate-400" style={layout.secondaryStyle}>
+                                  {rackAssetSecondaryLabel((a as any).serialNumber, ip)} • U{(a as any).start}-U{(a as any).end} • {faceLabel(aFace)}
+                                </div>
+                              )}
                             </div>
                           </button>
                         );
@@ -719,6 +763,7 @@ export default function RackLayoutDesignerPage() {
                               const height = (a as any).size * unitPx;
                               const ip = ((a as any).ips || []).find((x: any) => !x.isPublic)?.address;
                               const aFace = ((a as any).rackFace ?? "FRONT") as RackFace;
+                              const layout = getRackAssetCardLayout(height);
 
                               return (
                                 <button
@@ -737,16 +782,30 @@ export default function RackLayoutDesignerPage() {
                                     setPlacementFace(aFace);
                                   }}
                                   className={[
-                                    "absolute left-2 right-2 rounded-xl border text-left px-3 py-2",
+                                    "absolute left-2 right-2 overflow-hidden rounded-xl border text-left",
                                     selectedAssetId === (a as any).id
                                       ? "border-blue-500 bg-blue-600/20"
                                       : "border-slate-700 bg-slate-900/60 hover:bg-slate-900/80",
                                   ].join(" ")}
-                                  style={{ top, height }}
+                                  style={{
+                                    top: top + 1,
+                                    height: layout.cardHeight,
+                                    padding: layout.padding,
+                                  }}
                                 >
-                                  <div className="text-white font-bold text-sm truncate">{(a as any).name}</div>
-                                  <div className="text-slate-400 text-xs truncate">
-                                    {ip ? `IP: ${ip}` : (a as any).serialNumber} • U{(a as any).start}-U{(a as any).end} • {faceLabel(aFace)}
+                                  <div className={layout.contentClassName} style={layout.contentStyle}>
+                                    <div className="truncate font-bold text-white" style={layout.titleStyle}>
+                                      {(a as any).name}
+                                    </div>
+                                    {layout.compact ? (
+                                      <div className="truncate text-slate-400" style={layout.secondaryStyle}>
+                                        U{(a as any).start}
+                                      </div>
+                                    ) : (
+                                      <div className="truncate text-slate-400" style={layout.secondaryStyle}>
+                                        {rackAssetSecondaryLabel((a as any).serialNumber, ip)} • U{(a as any).start}-U{(a as any).end} • {faceLabel(aFace)}
+                                      </div>
+                                    )}
                                   </div>
                                 </button>
                               );
@@ -847,7 +906,7 @@ export default function RackLayoutDesignerPage() {
                   ].join(" ")}
                 >
                   <div className="text-white font-bold text-sm">{a.name}</div>
-                  <div className="text-slate-500 text-xs">{a.serialNumber}</div>
+                  <div className="text-slate-500 text-xs">{formatAssetSerialNumber(a.serialNumber)}</div>
                   <div className="text-slate-400 text-xs mt-1">{a.category} • {placementLabel(a)}</div>
                 </button>
               );
