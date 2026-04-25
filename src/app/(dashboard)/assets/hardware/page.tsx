@@ -207,6 +207,9 @@ function HardwareContent() {
       await refreshTable();
       router.refresh();
       toast.success(`Imported ${payload.created + payload.updated} asset rows.`);
+      setShowImportModal(false);
+      setImportFile(null);
+      setImportResult(null);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to import assets");
     } finally {
