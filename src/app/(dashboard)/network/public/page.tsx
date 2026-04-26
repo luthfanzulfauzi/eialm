@@ -475,21 +475,28 @@ export default function PublicIPPage() {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="relative">
+          <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center xl:w-auto xl:max-w-[44rem] xl:justify-end">
+            <div className="relative min-w-0 flex-1 sm:max-w-xs xl:w-72 xl:flex-none">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
               <input
                 type="text"
                 placeholder="Search IP, status, VM, hardware..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full rounded-lg border border-slate-800 bg-slate-900 pl-10 pr-4 py-2 text-sm text-white outline-none transition-all focus:border-blue-500 sm:w-72"
+                className="w-full rounded-lg border border-slate-800 bg-slate-900 pl-10 pr-4 py-2 text-sm text-white outline-none transition-all focus:border-blue-500"
               />
             </div>
-            <Button variant="outline" onClick={() => fetchInventory(true)} disabled={loading || refreshing}>
-              <RefreshCw size={16} className={cn("mr-2", refreshing && "animate-spin")} /> Refresh
+            <Button
+              variant="outline"
+              onClick={() => fetchInventory(true)}
+              disabled={loading || refreshing}
+              className="shrink-0 px-3"
+              aria-label="Refresh public IP inventory"
+              title="Refresh"
+            >
+              <RefreshCw size={16} className={cn(refreshing && "animate-spin")} />
             </Button>
-            <Button onClick={() => canManage && openCreateRangeModal()} disabled={!canManage}>
+            <Button onClick={() => canManage && openCreateRangeModal()} disabled={!canManage} className="shrink-0">
               <Plus size={18} className="mr-2" /> Add Public IP Range
             </Button>
           </div>
