@@ -106,15 +106,12 @@ export const config = {
   matcher: [
     /*
      * Match all request paths except for the ones starting with:
-     * - api/auth (NextAuth endpoints)
-     * - api/licenses/expiration-refresh (cron endpoint with its own secret/session auth)
-     * - api/health (public container/load-balancer health check)
-     * - api/metrics (observability endpoint with OBSERVABILITY_TOKEN)
+     * - api (API routes enforce auth in their handlers and should return API-native 401/403 responses)
      * - login (Our custom login page)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico, images, public assets
      */
-    "/((?!api/auth|api/licenses/expiration-refresh|api/health|api/metrics|login|_next/static|_next/image|favicon.ico|public|avatars).*)",
+    "/((?!api|login|_next/static|_next/image|favicon.ico|public|avatars).*)",
   ],
 };

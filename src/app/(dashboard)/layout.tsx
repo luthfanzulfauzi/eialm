@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { getAuthTier } from "@/lib/utils";
 import { ActivityPinger } from "@/components/auth/ActivityPinger";
 import { GlobalSearch } from "@/components/layout/GlobalSearch";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +12,24 @@ export default async function DashboardLayout({ children }: { children: React.Re
   // Retrieve the server-side session using authOptions
   const session = await getServerSession(authOptions);
   const user = session?.user;
+
+  if (!user?.id) {
+    redirect("/login");
+  }
+
+  const timeoutMinutes =
+    typeof (user as any).loginTimeout === "number" && (user as any).loginTimeout > 0
+      ? (user as any).loginTimeout
+      : 30;
+  const lastActivityAtRaw = (user as any).lastActivityAt;
+  const lastActivityAt = typeof lastActivityAtRaw === "string" ? Date.parse(lastActivityAtRaw) : NaN;
+
+  if (Number.isFinite(lastActivityAt)) {
+    const elapsedMs = Date.now() - lastActivityAt;
+    if (elapsedMs > timeoutMinutes * 60 * 1000) {
+      redirect("/login?timedOut=1");
+    }
+  }
 
   // Derive initials from the user's name (e.g., "System Administrator" -> "SA")
   const initials = user?.name
