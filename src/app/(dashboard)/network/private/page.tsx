@@ -118,6 +118,7 @@ function getInitialFormState(ip?: PrivateIp | null): StatusFormState {
 }
 
 export default function PrivateIPPage() {
+  const [rangeFormMode, setRangeFormMode] = useState<"create" | "edit">("create");
   const [ips, setIps] = useState<PrivateIp[]>([]);
   const [summary, setSummary] = useState(DEFAULT_SUMMARY);
   const [subnets, setSubnets] = useState<PrivateSubnetSummary[]>([]);
@@ -193,6 +194,7 @@ export default function PrivateIPPage() {
   }, [ips, searchQuery]);
 
   const resetRangeForm = () => {
+    setRangeFormMode("create");
     setActiveRange(null);
     setRangeNetwork("");
     setRangePrefix("24");
@@ -207,6 +209,7 @@ export default function PrivateIPPage() {
 
   const openCreateRangeModal = () => {
     resetRangeForm();
+    setRangeFormMode("create");
     setShowRangeModal(true);
   };
 
@@ -217,6 +220,7 @@ export default function PrivateIPPage() {
   };
 
   const openEditRangeModal = (range: PrivateRange) => {
+    setRangeFormMode("edit");
     setActiveRange(range);
     setRangeNetwork(range.network);
     setRangePrefix(String(range.prefix));
@@ -339,34 +343,37 @@ export default function PrivateIPPage() {
     }
   };
 
-  const handleUpdateRange = async () => {
-    if (!canManage || !activeRange) return;
-
+  const handleSaveRange = async () => {
+    if (!canManage) return;
     setSubmitting(true);
     setRangeModalError(null);
     try {
-      const res = await fetch(`/api/private-ip/ranges/${activeRange.id}`, {
-        method: "PATCH",
+      const isEditing = rangeFormMode === "edit" && activeRange;
+      const endpoint = isEditing ? `/api/private-ip/ranges/${activeRange.id}` : "/api/private-ip/ranges";
+      const res = await fetch(endpoint, {
+        method: isEditing ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ network: rangeNetwork.trim(), prefix: Number(rangePrefix) }),
       });
       const payload = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setRangeModalError(payload.error || "Failed to update private range.");
+        setRangeModalError(payload.error || `Failed to ${isEditing ? "update" : "create"} private range.`);
         return;
       }
 
       setBanner({
         type: "success",
-        message: `Updated private range ${payload.cidr || `${rangeNetwork.trim()}/${rangePrefix}`}.`,
+        message: isEditing
+          ? `Updated private range ${payload.cidr || `${rangeNetwork.trim()}/${rangePrefix}`}.`
+          : `Registered private range ${payload.cidr || `${rangeNetwork.trim()}/${rangePrefix}`}.`,
       });
       setShowRangeModal(false);
       resetRangeForm();
       await fetchInventory(true);
       router.refresh();
     } catch (error) {
-      console.error("Range update failed", error);
-      setRangeModalError("Failed to update private range.");
+      console.error("Range save failed", error);
+      setRangeModalError(`Failed to ${rangeFormMode === "edit" ? "update" : "create"} private range.`);
     } finally {
       setSubmitting(false);
     }
@@ -869,7 +876,7 @@ export default function PrivateIPPage() {
           setShowRangeModal(false);
           resetRangeForm();
         }}
-        title={`Edit ${activeRange?.cidr || "Private IP Range"}`}
+        title={rangeFormMode === "edit" ? `Edit ${activeRange?.cidr || "Private IP Range"}` : "Add Private IP Range"}
       >
         <div className="space-y-5">
           {rangeModalError && (
@@ -890,7 +897,11 @@ export default function PrivateIPPage() {
           </div>
 
           <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-4 text-sm text-slate-400">
-            <p>Editing a range rebuilds the block and is only allowed when every IP in that range is AVAILABLE.</p>
+            <p>
+              {rangeFormMode === "edit"
+                ? "Editing a range rebuilds the block and is only allowed when every IP in that range is AVAILABLE."
+                : "Register a valid private CIDR block to generate IP inventory for target-aware status management."}
+            </p>
           </div>
 
           <div className="flex justify-end gap-2">
@@ -905,11 +916,11 @@ export default function PrivateIPPage() {
               Cancel
             </Button>
             <Button
-              onClick={() => void handleUpdateRange()}
+              onClick={() => void handleSaveRange()}
               disabled={submitting || !rangeNetwork.trim() || !rangePrefix.trim()}
               className="bg-emerald-600 shadow-emerald-500/20 hover:bg-emerald-700"
             >
-              {submitting ? "Saving..." : "Save Changes"}
+              {submitting ? (rangeFormMode === "edit" ? "Saving..." : "Creating...") : rangeFormMode === "edit" ? "Save Changes" : "Create Range"}
             </Button>
           </div>
         </div>
