@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
-import { Edit3, Globe, Loader2, Network, Plus, RefreshCw, Search, Server, Trash2, Unlink } from "lucide-react";
+import { Download, Edit3, Globe, Loader2, Network, Plus, RefreshCw, Search, Server, Trash2, Unlink, Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRole } from "@/hooks/useRole";
 import { Modal } from "@/components/ui/Modal";
@@ -71,6 +71,12 @@ type StatusFormState = {
 };
 
 type RangeFormMode = "create" | "edit";
+type ImportResult = {
+  created: number;
+  updated: number;
+  failed: number;
+  errors?: Array<{ row: number; error: string }>;
+};
 
 const DEFAULT_SUMMARY: InventoryResponse["summary"] = {
   total: 0,
@@ -122,6 +128,7 @@ export default function PublicIPPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [showRangeModal, setShowRangeModal] = useState(false);
   const [showManageModal, setShowManageModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [rangeFormMode, setRangeFormMode] = useState<RangeFormMode>("create");
   const [activeRange, setActiveRange] = useState<PublicRange | null>(null);
@@ -130,6 +137,9 @@ export default function PublicIPPage() {
   const [activeIp, setActiveIp] = useState<PublicIp | null>(null);
   const [manageForm, setManageForm] = useState<StatusFormState>(getInitialFormState());
   const [submitting, setSubmitting] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [banner, setBanner] = useState<{ type: "error" | "success"; message: string } | null>(null);
   const [rangeModalError, setRangeModalError] = useState<string | null>(null);
   const router = useRouter();
@@ -199,6 +209,12 @@ export default function PublicIPPage() {
   const openCreateRangeModal = () => {
     resetRangeForm();
     setShowRangeModal(true);
+  };
+
+  const openImportModal = () => {
+    setImportFile(null);
+    setImportResult(null);
+    setShowImportModal(true);
   };
 
   const openEditRangeModal = (range: PublicRange) => {
@@ -387,6 +403,69 @@ export default function PublicIPPage() {
     }
   };
 
+  const handleExport = async () => {
+    try {
+      const res = await fetch("/api/network/transfer?type=public", { cache: "no-store" });
+      if (!res.ok) {
+        const message = await res.text();
+        setBanner({ type: "error", message: message || "Failed to export public IP inventory." });
+        return;
+      }
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const disposition = res.headers.get("Content-Disposition");
+      const filenameMatch = disposition?.match(/filename="(.+)"/);
+      link.href = url;
+      link.download = filenameMatch?.[1] || "public-ip-inventory.csv";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Public IP export failed", error);
+      setBanner({ type: "error", message: "Failed to export public IP inventory." });
+    }
+  };
+
+  const handleImport = async () => {
+    if (!canManage || !importFile) return;
+
+    setImporting(true);
+    setImportResult(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", importFile);
+
+      const res = await fetch("/api/network/transfer?type=public", {
+        method: "POST",
+        body: formData,
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setBanner({ type: "error", message: payload.error || "Failed to import public IP inventory." });
+        return;
+      }
+
+      setImportResult(payload as ImportResult);
+      setBanner({
+        type: payload.failed > 0 ? "error" : "success",
+        message:
+          payload.failed > 0
+            ? `Imported public IP CSV with ${payload.failed} failed row(s).`
+            : `Imported public IP CSV. ${payload.created} created, ${payload.updated} updated.`,
+      });
+      await fetchInventory(true);
+      router.refresh();
+    } catch (error) {
+      console.error("Public IP import failed", error);
+      setBanner({ type: "error", message: "Failed to import public IP inventory." });
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const statusBadge = (status: IPStatus) =>
     cn(
       "inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-bold tracking-[0.2em]",
@@ -486,6 +565,22 @@ export default function PublicIPPage() {
                 className="w-full rounded-lg border border-slate-800 bg-slate-900 pl-10 pr-4 py-2 text-sm text-white outline-none transition-all focus:border-blue-500"
               />
             </div>
+            <Button
+              variant="outline"
+              onClick={() => void handleExport()}
+              disabled={loading}
+              className="shrink-0"
+            >
+              <Download size={16} className="mr-2" /> Export
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => canManage && openImportModal()}
+              disabled={!canManage}
+              className="shrink-0"
+            >
+              <Upload size={16} className="mr-2" /> Import
+            </Button>
             <Button
               variant="outline"
               onClick={() => fetchInventory(true)}
@@ -724,6 +819,69 @@ export default function PublicIPPage() {
           </div>
         </div>
       </div>
+
+      <Modal
+        isOpen={showImportModal}
+        onClose={() => {
+          setShowImportModal(false);
+          setImportFile(null);
+          setImportResult(null);
+        }}
+        title="Import Public IP Inventory"
+      >
+        <div className="space-y-5">
+          <div className="flex items-center justify-between">
+            <a
+              href="/samples/network-ip-import-sample.csv"
+              download
+              className="text-sm text-blue-400 hover:text-blue-300"
+            >
+              Download sample CSV
+            </a>
+          </div>
+
+          <div className="space-y-2">
+            <div className="text-sm font-medium text-slate-300">CSV File</div>
+            <Input
+              type="file"
+              accept=".csv,text/csv"
+              onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
+            />
+          </div>
+
+          {importResult && (
+            <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-4 text-sm text-slate-300">
+              <p>{importResult.created} created</p>
+              <p>{importResult.updated} updated</p>
+              <p>{importResult.failed} failed</p>
+              {importResult.errors && importResult.errors.length > 0 && (
+                <div className="mt-3 max-h-40 space-y-1 overflow-y-auto text-xs text-red-200">
+                  {importResult.errors.slice(0, 10).map((entry) => (
+                    <p key={`${entry.row}-${entry.error}`}>Row {entry.row}: {entry.error}</p>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowImportModal(false);
+                setImportFile(null);
+                setImportResult(null);
+              }}
+              disabled={importing}
+            >
+              Close
+            </Button>
+            <Button onClick={() => void handleImport()} disabled={importing || !importFile}>
+              {importing ? "Importing..." : "Import CSV"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal
         isOpen={showRangeModal}
