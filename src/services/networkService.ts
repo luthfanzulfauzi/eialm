@@ -14,6 +14,7 @@ const MAX_PRIVATE_CIDR_HOSTS = 1024;
 
 type CreatePrivateIpInput = {
   mode: "single" | "cidr";
+  name?: string | null;
   address: string;
   prefix?: number;
   assetId?: string | null;
@@ -192,6 +193,7 @@ export const NetworkService = {
 
     return ranges.map((range) => ({
       id: range.id,
+      name: range.name,
       network: range.network,
       prefix: range.prefix,
       cidr: range.cidr,
@@ -416,6 +418,7 @@ export const NetworkService = {
     const created = await prisma.$transaction(async (tx) => {
       const rangeRow = await tx.privateIPRange.create({
         data: {
+          name: typeof input.name === "string" ? input.name.trim() : "",
           network: input.address,
           prefix: rangePayload.prefix,
           cidr: rangePayload.cidr,
@@ -444,7 +447,7 @@ export const NetworkService = {
     return { created: created.sort((a, b) => compareIPv4Addresses(a.address, b.address)) };
   },
 
-  async updatePrivateRange(rangeId: string, input: { network: string; prefix: number }) {
+  async updatePrivateRange(rangeId: string, input: { name?: string | null; network: string; prefix: number }) {
     const existing = await prisma.privateIPRange.findUnique({
       where: { id: rangeId },
       select: { id: true },
@@ -494,6 +497,7 @@ export const NetworkService = {
       const updated = await tx.privateIPRange.update({
         where: { id: rangeId },
         data: {
+          name: typeof input.name === "string" ? input.name.trim() : "",
           network: input.network,
           prefix: payload.prefix,
           cidr: payload.cidr,

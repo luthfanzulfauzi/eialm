@@ -6,6 +6,7 @@ import { NetworkService } from "@/services/networkService";
 import { writeAuditLog } from "@/lib/audit";
 
 const CreateRangeSchema = z.object({
+  name: z.string().optional(),
   network: z.string().min(1),
   prefix: z.number().int().min(0).max(32),
 });
@@ -72,6 +73,7 @@ export async function POST(req: Request) {
   try {
     const created = await NetworkService.createPrivateIPs({
       mode: "cidr",
+      name: parsed.data.name,
       address: parsed.data.network,
       prefix: parsed.data.prefix,
       status: undefined,
@@ -84,6 +86,7 @@ export async function POST(req: Request) {
       userId: session.user.id,
       details: {
         cidr: `${parsed.data.network}/${parsed.data.prefix}`,
+        name: parsed.data.name?.trim() || "",
         network: parsed.data.network,
         prefix: parsed.data.prefix,
         createdCount: created.created.length,

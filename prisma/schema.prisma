@@ -193,6 +193,7 @@ model Asset {
 
 model PublicIPRange {
   id           String      @id @default(cuid())
+  name         String      @default("")
   network      String
   prefix       Int
   cidr         String      @unique
@@ -214,6 +215,7 @@ model PublicIPRange {
 
 model PrivateIPRange {
   id           String      @id @default(cuid())
+  name         String      @default("")
   network      String
   prefix       Int
   cidr         String      @unique

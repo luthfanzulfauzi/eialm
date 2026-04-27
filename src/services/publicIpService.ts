@@ -235,6 +235,7 @@ export const PublicIpService = {
 
     return ranges.map((r) => ({
       id: r.id,
+      name: r.name,
       network: r.network,
       prefix: r.prefix,
       cidr: r.cidr,
@@ -247,8 +248,9 @@ export const PublicIpService = {
     }));
   },
 
-  async createRange(input: { network: string; prefix: number }) {
+  async createRange(input: { name?: string | null; network: string; prefix: number }) {
     const { prefix, range, cidr, startAddress, endAddress, size } = buildRangePayload(input);
+    const name = typeof input.name === "string" ? input.name.trim() : "";
 
     const existingOverlap = await prisma.publicIPRange.findFirst({
       where: {
@@ -266,6 +268,7 @@ export const PublicIpService = {
     const created = await prisma.$transaction(async (tx) => {
       const rangeRow = await tx.publicIPRange.create({
         data: {
+          name,
           network: input.network,
           prefix,
           cidr,
@@ -302,7 +305,7 @@ export const PublicIpService = {
     return created;
   },
 
-  async updateRange(rangeId: string, input: { network: string; prefix: number }) {
+  async updateRange(rangeId: string, input: { name?: string | null; network: string; prefix: number }) {
     const existing = await prisma.publicIPRange.findUnique({
       where: { id: rangeId },
       select: { id: true },
@@ -332,6 +335,7 @@ export const PublicIpService = {
     }
 
     const { prefix, range, cidr, startAddress, endAddress, size } = buildRangePayload(input);
+    const name = typeof input.name === "string" ? input.name.trim() : "";
 
     const overlap = await prisma.publicIPRange.findFirst({
       where: {
@@ -353,6 +357,7 @@ export const PublicIpService = {
       const updated = await tx.publicIPRange.update({
         where: { id: rangeId },
         data: {
+          name,
           network: input.network,
           prefix,
           cidr,

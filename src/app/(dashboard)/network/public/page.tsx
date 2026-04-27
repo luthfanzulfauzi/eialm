@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
-import { Download, Edit3, Globe, Loader2, Network, Plus, RefreshCw, Search, Server, Trash2, Unlink, Upload } from "lucide-react";
+import { Download, Edit3, Globe, Loader2, Plus, RefreshCw, Search, Server, Trash2, Unlink, Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRole } from "@/hooks/useRole";
 import { Modal } from "@/components/ui/Modal";
@@ -29,14 +29,9 @@ type PublicIp = {
   asset: AssetOption | null;
 };
 
-type PublicSubnetSummary = {
-  cidr: string;
-  counts: Record<IPStatus, number>;
-  assignedAssets: number;
-};
-
 type PublicRange = {
   id: string;
+  name: string;
   network: string;
   prefix: number;
   cidr: string;
@@ -58,7 +53,6 @@ type InventoryResponse = {
     unassigned: number;
     rangeCount: number;
   };
-  subnets: PublicSubnetSummary[];
   ranges: PublicRange[];
   assignableAssets: AssetOption[];
 };
@@ -121,7 +115,6 @@ function getInitialFormState(ip?: PublicIp | null): StatusFormState {
 export default function PublicIPPage() {
   const [ips, setIps] = useState<PublicIp[]>([]);
   const [summary, setSummary] = useState(DEFAULT_SUMMARY);
-  const [subnets, setSubnets] = useState<PublicSubnetSummary[]>([]);
   const [ranges, setRanges] = useState<PublicRange[]>([]);
   const [assets, setAssets] = useState<AssetOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -132,6 +125,7 @@ export default function PublicIPPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [rangeFormMode, setRangeFormMode] = useState<RangeFormMode>("create");
   const [activeRange, setActiveRange] = useState<PublicRange | null>(null);
+  const [rangeName, setRangeName] = useState("");
   const [rangeNetwork, setRangeNetwork] = useState("");
   const [rangePrefix, setRangePrefix] = useState("24");
   const [activeIp, setActiveIp] = useState<PublicIp | null>(null);
@@ -156,7 +150,6 @@ export default function PublicIPPage() {
       const data = (await res.json()) as InventoryResponse;
       setIps(Array.isArray(data.items) ? data.items : []);
       setSummary(data.summary ?? DEFAULT_SUMMARY);
-      setSubnets(Array.isArray(data.subnets) ? data.subnets : []);
       setRanges(Array.isArray(data.ranges) ? data.ranges : []);
       setAssets(Array.isArray(data.assignableAssets) ? data.assignableAssets : []);
     } catch (error) {
@@ -207,6 +200,7 @@ export default function PublicIPPage() {
   const resetRangeForm = () => {
     setRangeFormMode("create");
     setActiveRange(null);
+    setRangeName("");
     setRangeNetwork("");
     setRangePrefix("24");
     setRangeModalError(null);
@@ -232,6 +226,7 @@ export default function PublicIPPage() {
   const openEditRangeModal = (range: PublicRange) => {
     setRangeFormMode("edit");
     setActiveRange(range);
+    setRangeName(range.name || "");
     setRangeNetwork(range.network);
     setRangePrefix(String(range.prefix));
     setRangeModalError(null);
@@ -363,7 +358,7 @@ export default function PublicIPPage() {
       const res = await fetch(endpoint, {
         method: isEditing ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ network: rangeNetwork.trim(), prefix: Number(rangePrefix) }),
+        body: JSON.stringify({ name: rangeName.trim(), network: rangeNetwork.trim(), prefix: Number(rangePrefix) }),
       });
       const payload = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -640,7 +635,7 @@ export default function PublicIPPage() {
               <div className="text-sm font-bold text-white">Public Address Inventory</div>
               <div className="text-xs text-slate-500">
                 {filteredIps.length} visible addresses
-                {selectedRange ? ` • Filtered by ${selectedRange.cidr}` : ""}
+                {selectedRange ? ` • Filtered by ${selectedRange.name || selectedRange.cidr}` : ""}
               </div>
             </div>
             <div className="text-xs text-slate-500">
@@ -761,9 +756,9 @@ export default function PublicIPPage() {
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <div className="text-sm font-bold text-white">{range.cidr}</div>
+                        <div className="text-sm font-bold text-white">{range.name || range.cidr}</div>
                         <div className="mt-1 text-xs text-slate-500">
-                          {range.startAddress} to {range.endAddress} • {range.size} IPs
+                          {range.cidr} • {range.startAddress} to {range.endAddress} • {range.size} IPs
                         </div>
                         <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-slate-400">
                           <span>A {range.counts.AVAILABLE}</span>
@@ -804,41 +799,6 @@ export default function PublicIPPage() {
               ) : (
                 <div className="rounded-xl border border-dashed border-slate-800 px-4 py-8 text-center text-sm text-slate-500">
                   No managed public ranges yet. Add a public block to begin.
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-slate-800 bg-[#111620] p-5">
-            <div className="flex items-center gap-3">
-              <div className="rounded-xl border border-slate-700 bg-slate-900/60 p-3 text-blue-300">
-                <Network size={18} />
-              </div>
-              <div>
-                <div className="text-sm font-bold text-white">Range Coverage</div>
-                <div className="text-xs text-slate-500">Grouped by /24 buckets for quick operational review</div>
-              </div>
-            </div>
-
-            <div className="mt-4 space-y-3">
-              {subnets.length > 0 ? (
-                subnets.slice(0, 8).map((subnet) => (
-                  <div key={subnet.cidr} className="rounded-xl border border-slate-800 bg-slate-900/40 p-3">
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm font-bold text-white">{subnet.cidr}</div>
-                      <div className="text-xs text-slate-500">{subnet.assignedAssets} assigned</div>
-                    </div>
-                    <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-slate-400">
-                      <span>A {subnet.counts.AVAILABLE}</span>
-                      <span>R {subnet.counts.RESERVED}</span>
-                      <span>S {subnet.counts.ASSIGNED}</span>
-                      <span>B {subnet.counts.BLOCKED}</span>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="rounded-xl border border-dashed border-slate-800 px-4 py-8 text-center text-sm text-slate-500">
-                  Register a public range to start tracking coverage.
                 </div>
               )}
             </div>
@@ -934,6 +894,10 @@ export default function PublicIPPage() {
           )}
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="space-y-2 md:col-span-2">
+              <div className="text-sm font-medium text-slate-300">Name</div>
+              <Input placeholder="Transit ISP block / DMZ / Production NAT" value={rangeName} onChange={(e) => setRangeName(e.target.value)} />
+            </div>
             <div className="space-y-2">
               <div className="text-sm font-medium text-slate-300">Network</div>
               <Input placeholder="203.0.113.0" value={rangeNetwork} onChange={(e) => setRangeNetwork(e.target.value)} />

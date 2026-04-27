@@ -6,12 +6,14 @@ import { PublicIpService } from "@/services/publicIpService";
 import { writeAuditLog } from "@/lib/audit";
 
 const UpdateRangeSchema = z.object({
+  name: z.string().optional(),
   network: z.string().min(1),
   prefix: z.number().int().min(0).max(32),
 });
 
 function serializeRange(range: {
   id: string;
+  name: string;
   network: string;
   prefix: number;
   cidr: string;
@@ -23,6 +25,7 @@ function serializeRange(range: {
 }) {
   return {
     id: range.id,
+    name: range.name,
     network: range.network,
     prefix: range.prefix,
     cidr: range.cidr,
@@ -85,6 +88,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       userId: session.user.id,
       details: {
         rangeId: updated.id,
+        name: updated.name,
         cidr: updated.cidr,
         network: updated.network,
         prefix: updated.prefix,
