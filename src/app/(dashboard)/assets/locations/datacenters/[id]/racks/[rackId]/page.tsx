@@ -825,8 +825,7 @@ export default function RackLayoutDesignerPage() {
                 ) : (
                   <div className="grid grid-cols-2 gap-3">
                     {(["FRONT", "BACK"] as const).map((face) => (
-                      <div key={face} className="space-y-2">
-                        <div className="text-slate-400 text-xs font-bold">{faceLabel(face)}</div>
+                      <div key={face} className="space-y-2 pt-6">
                         <div
                           className="relative rounded-2xl border border-slate-800 bg-[#0f1218]"
                           style={{
@@ -839,6 +838,9 @@ export default function RackLayoutDesignerPage() {
                           onDragLeave={handleDragLeave}
                           onDrop={(e) => handleDrop(face, e)}
                         >
+                          <div className="pointer-events-none absolute left-4 top-[-22px] text-slate-400 text-xs font-bold">
+                            {faceLabel(face)}
+                          </div>
                           {dragHover && dragHover.face === face && (
                             <div
                               className="absolute left-0 right-0 h-[2px] bg-blue-500"
