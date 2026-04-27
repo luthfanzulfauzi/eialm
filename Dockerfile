@@ -23,7 +23,7 @@ RUN npm run build
 # Stage 3: Runner
 FROM node:20-alpine AS runner
 # CRITICAL: libc6-compat and openssl are required for Prisma engine binaries
-RUN apk add --no-cache openssl libc6-compat 
+RUN apk add --no-cache openssl libc6-compat postgresql-client
 WORKDIR /app
 
 ENV NODE_ENV=production

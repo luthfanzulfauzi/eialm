@@ -28,12 +28,15 @@ services:
     restart: always
     ports:
       - "3000:3000"
+    volumes:
+      - ./backups:/app/backups
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-password123}@db:5432/${POSTGRES_DB:-elitgrid_db}?schema=public
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
       NEXTAUTH_URL: ${NEXTAUTH_URL}
       CRON_SECRET: ${CRON_SECRET:-}
       OBSERVABILITY_TOKEN: ${OBSERVABILITY_TOKEN:-}
+      BACKUP_DIR: /app/backups
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@elitgrid.internal}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
       NODE_ENV: production

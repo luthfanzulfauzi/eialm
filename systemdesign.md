@@ -132,7 +132,7 @@ prisma/
 - The app and Nginx apply baseline security headers for content type sniffing, framing, referrer policy, and browser permissions.
 - Cloudflare Tunnel can target the app service directly over `http://app:3000`; `deploy/cloudflare-tunnel.example.yml` documents the expected ingress shape.
 - `GET /api/metrics` emits Prometheus text format when called with `OBSERVABILITY_TOKEN`.
-- PostgreSQL data persists in the `postgres-data` named volume. Logical backup, scheduled backup, pruning, restore, and restore-drill helpers live in `scripts/`.
+- PostgreSQL data persists in the `postgres-data` named volume. Logical backup, scheduled backup, pruning, restore, and restore-drill helpers live in `scripts/`, and Admin-only browser operations for create/download/restore now exist under `System Settings`.
 - Dashboard server rendering is explicitly dynamic so authenticated database-backed pages are not treated as static build artifacts.
 - `npm run lint` is now non-interactive through `.eslintrc.json`, and Docker validation runs against the Next.js lint/type/build pipeline.
 - Next.js is upgraded to the supported 15.5 LTS line with React 19. Remaining npm audit findings are the moderate `next-auth` / `uuid` chain and require an Auth.js major-version migration.

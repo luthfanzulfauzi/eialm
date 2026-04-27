@@ -178,7 +178,22 @@ The metrics endpoint returns `404` unless `OBSERVABILITY_TOKEN` is configured an
 
 ## Backup And Restore
 
-PostgreSQL runtime data is stored in the named Compose volume `postgres-data`. Create logical backups with:
+PostgreSQL runtime data is stored in the named Compose volume `postgres-data`.
+
+Admin users can now manage local database backups directly from the app UI at:
+
+- `System Settings` -> `Backup & Restore`
+
+The UI supports:
+
+- creating a backup
+- listing available local backup files
+- downloading a backup file
+- restoring a selected backup back into the active database
+
+Restore from the UI is Admin-only and intentionally destructive to current database contents, so use it carefully.
+
+The script-based workflow is still available. Create logical backups with:
 
 ```bash
 ./scripts/backup-postgres.sh
@@ -191,6 +206,8 @@ Backups are written to `./backups` by default and are ignored by Git. Restore a 
 ```
 
 For production, copy backup files to storage outside the Docker host, protect them as sensitive data, and test restore into a non-production environment before relying on the procedure.
+
+The app container now mounts `./backups` and can perform UI-driven backup and restore operations against the same local backup directory.
 
 Run scheduled local backups with retention pruning through the optional backup profile:
 

@@ -52,6 +52,18 @@ The metrics endpoint emits Prometheus text format and returns `404` unless `OBSE
 
 ## Backups
 
+Admin UI path:
+
+- open `System Settings`
+- use the `Backup & Restore` section
+- Admins can create, download, refresh, and restore local database backups from the browser
+
+Important:
+
+- UI restore replaces the current live database contents
+- use restore only with explicit operator confirmation
+- prefer testing a backup first with the restore drill before restoring into the active database
+
 One-off logical backup:
 
 ```bash
@@ -65,6 +77,8 @@ BACKUP_RETENTION_DAYS=14 ./scripts/prune-backups.sh
 ```
 
 Scheduled Compose backups write to `./backups` and prune files after `BACKUP_RETENTION_DAYS`.
+
+The app container also mounts `./backups`, so UI-created backups and script-created backups are operating on the same local backup directory.
 
 Production operators should copy backup files to off-host storage and protect them as sensitive data.
 
@@ -83,6 +97,12 @@ Validate a specific backup:
 ```
 
 The drill creates a temporary PostgreSQL database, restores the dump, runs a schema check, and drops the temporary database.
+
+Recommended restore order:
+
+1. Create or identify the target backup.
+2. Run the restore drill.
+3. Perform UI restore or script restore only after validation.
 
 ## Production Validation
 

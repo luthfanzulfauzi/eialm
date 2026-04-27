@@ -398,6 +398,14 @@ Backup and restore scripts:
 - `scripts/restore-drill-postgres.sh`
 - `scripts/production-validate.sh`
 
+Admin UI backup/restore:
+
+- `src/app/(dashboard)/settings/page.tsx`
+- `src/lib/backupManager.ts`
+- `src/app/api/settings/backups/route.ts`
+- `src/app/api/settings/backups/restore/route.ts`
+- `src/app/api/settings/backups/[filename]/route.ts`
+
 ## Seed / Environment Notes
 
 Seed behavior:
