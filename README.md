@@ -157,6 +157,18 @@ Nginx listens on `HTTP_PORT` and `HTTPS_PORT` from `.env` and forwards traffic t
 
 For Cloudflare Tunnel deployments, keep the app internal and point `cloudflared` at `http://app:3000`. A starter ingress file is available at `deploy/cloudflare-tunnel.example.yml`.
 
+To build and start the full tunnel-based stack for the first time, use:
+
+```bash
+docker compose --profile tunnel up -d --build
+```
+
+This brings up the same Compose project with:
+
+- `db`
+- `app`
+- `cloudflared`
+
 `cloudflared` is part of the same Compose project, but it is an optional service under the `tunnel` profile. If it was previously started with:
 
 ```bash

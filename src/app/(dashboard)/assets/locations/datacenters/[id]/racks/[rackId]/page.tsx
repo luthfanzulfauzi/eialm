@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Box, Layers, Loader2, Plus, Save, Trash2 } from "lucide-react";
+import { ArrowLeft, Box, Layers, Loader2, Plus, Save, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/Modal";
@@ -52,6 +52,7 @@ type RackDetailsResponse = {
 };
 
 const unitPx = 20;
+const hiddenRackIssueStorageKey = (rackId: string) => `rack-layout-hidden-issues:${rackId}`;
 
 const clampU = (u: number, totalUnits: number) => Math.max(1, Math.min(u, totalUnits));
 
@@ -105,7 +106,7 @@ export default function RackLayoutDesignerPage() {
   const [data, setData] = useState<RackDetailsResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const [viewMode, setViewMode] = useState<"FRONT" | "BACK" | "BOTH">("FRONT");
+  const [viewMode, setViewMode] = useState<"FRONT" | "BACK" | "BOTH">("BOTH");
   const [assetSearch, setAssetSearch] = useState("");
   const [assetScope, setAssetScope] = useState<"READY" | "THIS_RACK" | "OTHER_RACKS" | "ALL">("READY");
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
@@ -121,6 +122,7 @@ export default function RackLayoutDesignerPage() {
   const [quickPlaceSearch, setQuickPlaceSearch] = useState("");
   const [dragHover, setDragHover] = useState<{ face: "FRONT" | "BACK"; u: number } | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [hiddenIssueMessages, setHiddenIssueMessages] = useState<string[]>([]);
 
   const selectedAsset = useMemo(() => {
     if (!data || !selectedAssetId) return null;
@@ -140,17 +142,40 @@ export default function RackLayoutDesignerPage() {
     return items;
   }, [data]);
 
-  const fetchRack = async () => {
+  const visibleIssues = useMemo(() => {
+    const issues = data?.utilization.issues || [];
+    if (hiddenIssueMessages.length === 0) return issues;
+    return issues.filter((issue) => !hiddenIssueMessages.includes(issue.message));
+  }, [data, hiddenIssueMessages]);
+
+  const hiddenIssueCount = Math.max((data?.utilization.issues.length || 0) - visibleIssues.length, 0);
+
+  const fetchRack = useCallback(async () => {
     setLoading(true);
     const res = await fetch(`/api/racks/${rackId}`);
     const json = (await res.json()) as RackDetailsResponse;
     setData(json);
     setRackUnitsDraft(json?.rack?.totalUnits ?? 42);
     setLoading(false);
-  };
+  }, [rackId]);
 
   useEffect(() => {
     fetchRack();
+  }, [fetchRack]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem(hiddenRackIssueStorageKey(rackId));
+      if (!raw) {
+        setHiddenIssueMessages([]);
+        return;
+      }
+      const parsed = JSON.parse(raw);
+      setHiddenIssueMessages(Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === "string") : []);
+    } catch {
+      setHiddenIssueMessages([]);
+    }
   }, [rackId]);
 
   useEffect(() => {
@@ -161,6 +186,14 @@ export default function RackLayoutDesignerPage() {
     setPlacementSize(a.rackUnitSize ?? 1);
     setPlacementFace((a.rackFace ?? "FRONT") as RackFace);
   }, [data, selectedAssetId]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(
+      hiddenRackIssueStorageKey(rackId),
+      JSON.stringify(hiddenIssueMessages)
+    );
+  }, [hiddenIssueMessages, rackId]);
 
   const filteredAssets = useMemo(() => {
     if (!data) return [];
@@ -201,6 +234,23 @@ export default function RackLayoutDesignerPage() {
     if (asset.location?.type === "WAREHOUSE") return `Stored in ${asset.location.name}`;
     if (asset.location?.type === "DATACENTER") return `Staged at ${asset.location.name}`;
     return "Unassigned";
+  };
+
+  const hideIssue = (message: string) => {
+    setHiddenIssueMessages((current) => (current.includes(message) ? current : [...current, message]));
+  };
+
+  const restoreHiddenIssues = () => {
+    setHiddenIssueMessages([]);
+  };
+
+  const hideAllVisibleIssues = () => {
+    if (visibleIssues.length === 0) return;
+    setHiddenIssueMessages((current) => {
+      const next = new Set(current);
+      visibleIssues.forEach((issue) => next.add(issue.message));
+      return Array.from(next);
+    });
   };
 
   const assignAsset = async (params: { assetId: string; startU: number; sizeU: number; face: RackFace }) => {
@@ -401,11 +451,51 @@ export default function RackLayoutDesignerPage() {
           </div>
         </div>
 
-        {utilization.issues.length > 0 && (
+        {visibleIssues.length > 0 && (
           <div className="mt-4 rounded-xl border border-amber-900/50 bg-amber-950/20 p-3 text-sm text-amber-300">
-            {utilization.issues.map((i, idx) => (
-              <div key={idx}>{i.message}</div>
-            ))}
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <div className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-200/80">
+                Placement warnings
+              </div>
+              <button
+                type="button"
+                onClick={hideAllVisibleIssues}
+                className="text-xs font-medium text-amber-200 transition hover:text-white"
+              >
+                Hide all
+              </button>
+            </div>
+            <div className="space-y-2">
+              {visibleIssues.map((i, idx) => (
+                <div key={`${i.assetId}-${idx}`} className="flex items-start justify-between gap-3">
+                  <div>{i.message}</div>
+                  <button
+                    type="button"
+                    onClick={() => hideIssue(i.message)}
+                    className="mt-0.5 inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-amber-200 transition hover:bg-amber-400/10 hover:text-white"
+                    aria-label={`Hide warning: ${i.message}`}
+                  >
+                    <X size={12} />
+                    Hide
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {hiddenIssueCount > 0 && (
+          <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2 text-xs text-slate-400">
+            <div>
+              {hiddenIssueCount} placement warning{hiddenIssueCount === 1 ? "" : "s"} hidden for this rack.
+            </div>
+            <button
+              type="button"
+              onClick={restoreHiddenIssues}
+              className="font-medium text-slate-300 transition hover:text-white"
+            >
+              Show hidden warnings
+            </button>
           </div>
         )}
 

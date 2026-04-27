@@ -382,6 +382,7 @@ Current deployment model:
 - optional Compose profiles:
   - `proxy` for Nginx
   - `backup` for scheduled logical dumps
+  - `tunnel` for Cloudflare Tunnel / `cloudflared`
 
 Health and observability:
 

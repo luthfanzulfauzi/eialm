@@ -22,6 +22,18 @@ docker compose --profile backup up -d
 
 For Cloudflare Tunnel, use `deploy/cloudflare-tunnel.example.yml` and point the tunnel service at `http://app:3000`.
 
+Initial tunnel-based startup:
+
+```bash
+docker compose --profile tunnel up -d --build
+```
+
+This starts:
+
+- `db`
+- `app`
+- `cloudflared`
+
 Notes:
 
 - `cloudflared` is part of the same Compose project, but runs under the optional `tunnel` profile
