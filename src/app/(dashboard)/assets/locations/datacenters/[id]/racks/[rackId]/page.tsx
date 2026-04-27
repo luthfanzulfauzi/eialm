@@ -721,7 +721,7 @@ export default function RackLayoutDesignerPage() {
             </div>
 
             <div className="flex gap-3">
-              <div className="w-10 text-slate-500 text-xs select-none">
+              <div className={["w-10 text-slate-500 text-xs select-none", viewMode === "BOTH" ? "pt-6" : ""].join(" ")}>
                 <div style={{ height: data.rack.totalUnits * unitPx }} className="relative">
                   {Array.from({ length: data.rack.totalUnits }).map((_, idx) => {
                     const u = data.rack.totalUnits - idx;
