@@ -57,6 +57,7 @@ export async function GET(req: Request) {
   });
 
   const header = [
+    "id",
     "name",
     "serialNumber",
     "category",
@@ -92,6 +93,7 @@ export async function GET(req: Request) {
     const locationName = a.location?.name || fallbackLocation?.name || "";
 
     return [
+    a.id,
     a.name,
     formatAssetSerialNumber(a.serialNumber),
     a.category,

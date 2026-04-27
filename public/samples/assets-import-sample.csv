@@ -1,2 +1,2 @@
-name,serialNumber,category,status,locationType,locationName,rackName,rackFace,rackUnitStart,rackUnitSize,serverType,cpuType,cpuSocketNumber,cpuCore,memoryType,memorySize,memorySlotUsed,memorySpeed,diskOsType,diskOsNumber,diskOsSize,diskDataType,diskDataNumber,diskDataSize
-GHOIB-Server,GH0188XX,Server,ACTIVE,DATACENTER,DCI-Cibitung,Rack-A1-Elit111,FRONT,10,2,Rackmount 1U,XEON,2,3,DDR4,23,3,3200,SSD,2,958,HDD,4,4000
+id,name,serialNumber,category,status,locationType,locationName,rackName,rackFace,rackUnitStart,rackUnitSize,serverType,cpuType,cpuSocketNumber,cpuCore,memoryType,memorySize,memorySlotUsed,memorySpeed,diskOsType,diskOsNumber,diskOsSize,diskDataType,diskDataNumber,diskDataSize
+,GHOIB-Server,GH0188XX,Server,ACTIVE,DATACENTER,DCI-Cibitung,Rack-A1-Elit111,FRONT,10,2,Rackmount 1U,XEON,2,3,DDR4,23,3,3200,SSD,2,958,HDD,4,4000

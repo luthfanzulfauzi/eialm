@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { parseCsv } from "@/lib/csv";
 import { AssetService } from "@/services/assetService";
+import { isAssetSerialNumberNotAvailable } from "@/lib/utils";
 import type { AssetStatus, LocationType, RackFace } from "@prisma/client";
 
 const normalize = (v: string | undefined) => (v ?? "").trim();
@@ -48,6 +49,62 @@ const stripEmpty = (v: string | undefined) => {
   return s.length ? s : null;
 };
 
+const findExistingAssetForImport = async (params: {
+  id: string | null;
+  name: string;
+  serialNumber: string;
+  category: string;
+  locationId: string | null;
+  rackId: string | null;
+  rackFace: RackFace | null;
+  rackUnitStart: number | null;
+  rackUnitSize: number | null;
+}) => {
+  const {
+    id,
+    name,
+    serialNumber,
+    category,
+    locationId,
+    rackId,
+    rackFace,
+    rackUnitStart,
+    rackUnitSize,
+  } = params;
+
+  if (id) {
+    const byId = await prisma.asset.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+    if (byId) return byId;
+  }
+
+  if (!isAssetSerialNumberNotAvailable(serialNumber)) {
+    return prisma.asset.findUnique({
+      where: { serialNumber },
+      select: { id: true },
+    });
+  }
+
+  return prisma.asset.findFirst({
+    where: {
+      name: { equals: name, mode: "insensitive" },
+      category: { equals: category, mode: "insensitive" },
+      locationId,
+      rackId,
+      rackFace: rackId ? rackFace : null,
+      rackUnitStart: rackId ? rackUnitStart : null,
+      rackUnitSize: rackId ? rackUnitSize : null,
+      serialNumber: {
+        startsWith: "__NA__:",
+      },
+    },
+    orderBy: { updatedAt: "desc" },
+    select: { id: true },
+  });
+};
+
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session || session.user.role === "VIEWER") {
@@ -84,6 +141,7 @@ export async function POST(req: Request) {
       const rowNumber = i + 2;
       const row = rows[i];
 
+      const assetId = stripEmpty(get(row, "id"));
       const name = normalize(get(row, "name"));
       const serialNumber = normalize(get(row, "serialNumber"));
       const category = normalize(get(row, "category"));
@@ -172,9 +230,16 @@ export async function POST(req: Request) {
       } as any;
 
       try {
-        const existing = await prisma.asset.findUnique({
-          where: { serialNumber },
-          select: { id: true },
+        const existing = await findExistingAssetForImport({
+          id: assetId,
+          name,
+          serialNumber,
+          category,
+          locationId,
+          rackId,
+          rackFace,
+          rackUnitStart,
+          rackUnitSize,
         });
 
         if (existing) {
