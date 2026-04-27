@@ -324,6 +324,7 @@ Move from containerized development readiness to production-safe deployment and 
 - [x] Cloudflare Tunnel starter ingress config is documented.
 - [x] PostgreSQL backup and restore helpers exist.
 - [x] Scheduled backup profile, local retention pruning, and restore-drill helper exist.
+- [x] Admin-only UI backup/restore operations now exist in `System Settings`, including create, download, restore, retention policy, timezone-aware frequency settings, and next-run visibility.
 - [x] App and proxy healthchecks are implemented through a public database-backed health endpoint.
 - [x] Token-protected metrics endpoint exists for Prometheus-style scraping.
 - [x] Docker log rotation defaults are configured.
@@ -357,6 +358,7 @@ Move from containerized development readiness to production-safe deployment and 
 - [x] Health checks
 - [ ] Observability setup for logs and metrics
 - [x] Scheduled backup and restore-drill tooling
+- [x] Admin UI backup/restore and policy controls
 - [x] Production runbook and validation script
 - [x] Baseline security headers
 - [x] Build hardening against external font fetch dependency
