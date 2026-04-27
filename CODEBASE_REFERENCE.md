@@ -402,9 +402,16 @@ Admin UI backup/restore:
 
 - `src/app/(dashboard)/settings/page.tsx`
 - `src/lib/backupManager.ts`
+- `src/services/backupPolicyService.ts`
 - `src/app/api/settings/backups/route.ts`
 - `src/app/api/settings/backups/restore/route.ts`
 - `src/app/api/settings/backups/[filename]/route.ts`
+
+Backup policy notes:
+
+- retention is now count-based from the admin settings UI
+- schedule supports hourly, daily, and monthly cadence
+- schedule calculation is timezone-aware and uses the timezone captured when the admin saves the policy
 
 ## Seed / Environment Notes
 

@@ -24,6 +24,31 @@ type BackupEntry = {
   size: number;
   modifiedAt: string;
 };
+type BackupPolicy = {
+  enabled: boolean;
+  retentionCount: number;
+  frequencyUnit: "HOURLY" | "DAILY" | "MONTHLY";
+  frequencyInterval: number;
+  timeZone: string;
+  runHour: number;
+  runMinute: number;
+  dayOfMonth: number;
+  lastRunAt: string | null;
+  nextRunAt: string | null;
+};
+
+const defaultBackupPolicy: BackupPolicy = {
+  enabled: true,
+  retentionCount: 14,
+  frequencyUnit: "DAILY",
+  frequencyInterval: 1,
+  timeZone: "Asia/Jakarta",
+  runHour: 0,
+  runMinute: 30,
+  dayOfMonth: 1,
+  lastRunAt: null,
+  nextRunAt: null,
+};
 
 const emptyProductOptions: ProductOptionsByType = {
   CATEGORY: [],
@@ -69,6 +94,8 @@ export default function SettingsPage() {
   const [backupMessage, setBackupMessage] = useState<string | null>(null);
   const [backupBusyAction, setBackupBusyAction] = useState<"create" | "refresh" | null>(null);
   const [restoringBackup, setRestoringBackup] = useState<string | null>(null);
+  const [backupPolicy, setBackupPolicy] = useState<BackupPolicy>(defaultBackupPolicy);
+  const [backupPolicySaving, setBackupPolicySaving] = useState(false);
 
   const fetchProductOptions = async () => {
     try {
@@ -97,6 +124,7 @@ export default function SettingsPage() {
         throw new Error(payload?.error || "Failed to load backups");
       }
       setBackups(payload.backups || []);
+      setBackupPolicy(payload.policy || defaultBackupPolicy);
     } catch (error) {
       setBackupMessage(error instanceof Error ? error.message : "Failed to load backups");
     } finally {
@@ -317,6 +345,43 @@ export default function SettingsPage() {
     return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
   };
 
+  const getBrowserTimeZone = () => {
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Jakarta";
+    } catch {
+      return "Asia/Jakarta";
+    }
+  };
+
+  const handleSaveBackupPolicy = async () => {
+    setBackupMessage(null);
+    setBackupPolicySaving(true);
+    try {
+      const res = await fetch("/api/settings/backups", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...backupPolicy,
+          timeZone: getBrowserTimeZone(),
+        }),
+      });
+      const payload = await res.json().catch(() => ({} as any));
+      if (!res.ok) {
+        throw new Error(payload?.error || "Failed to save backup policy");
+      }
+
+      setBackupPolicy(payload.policy || defaultBackupPolicy);
+      setBackupMessage("Backup policy saved.");
+    } catch (error) {
+      setBackupMessage(error instanceof Error ? error.message : "Failed to save backup policy");
+    } finally {
+      setBackupPolicySaving(false);
+    }
+  };
+
+  const formatTimeInput = (hour: number, minute: number) =>
+    `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+
   return (
     <div className="max-w-6xl space-y-8">
       <div>
@@ -437,6 +502,165 @@ export default function SettingsPage() {
               <span>{backupMessage}</span>
             </div>
           ) : null}
+
+          <div className="grid grid-cols-1 gap-4 rounded-2xl border border-slate-800 bg-slate-900/20 p-5 md:grid-cols-2 xl:grid-cols-5">
+            <label className="space-y-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Keep Last</span>
+              <input
+                type="number"
+                min={1}
+                max={365}
+                value={backupPolicy.retentionCount}
+                onChange={(e: any) =>
+                  setBackupPolicy((current) => ({ ...current, retentionCount: Number(e.target.value) }))
+                }
+                className="w-full rounded-lg border border-slate-800 bg-slate-900 p-3 text-sm text-white outline-none focus:border-blue-500"
+              />
+            </label>
+
+            <label className="space-y-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Frequency Unit</span>
+              <select
+                value={backupPolicy.frequencyUnit}
+                onChange={(e: any) =>
+                  setBackupPolicy((current) => ({
+                    ...current,
+                    frequencyUnit: e.target.value,
+                  }))
+                }
+                className="w-full rounded-lg border border-slate-800 bg-slate-900 p-3 text-sm text-white outline-none focus:border-blue-500"
+              >
+                <option value="HOURLY">Hour</option>
+                <option value="DAILY">Day</option>
+                <option value="MONTHLY">Month</option>
+              </select>
+            </label>
+
+            <label className="space-y-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Every</span>
+              <input
+                type="number"
+                min={1}
+                max={365}
+                value={backupPolicy.frequencyInterval}
+                onChange={(e: any) =>
+                  setBackupPolicy((current) => ({ ...current, frequencyInterval: Number(e.target.value) }))
+                }
+                className="w-full rounded-lg border border-slate-800 bg-slate-900 p-3 text-sm text-white outline-none focus:border-blue-500"
+              />
+            </label>
+
+            <label className="space-y-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                {backupPolicy.frequencyUnit === "MONTHLY"
+                  ? "Day Of Month"
+                  : backupPolicy.frequencyUnit === "HOURLY"
+                    ? "Run Minute"
+                    : "Run Time"}
+              </span>
+              {backupPolicy.frequencyUnit === "MONTHLY" ? (
+                <input
+                  type="number"
+                  min={1}
+                  max={31}
+                  value={backupPolicy.dayOfMonth}
+                  onChange={(e: any) =>
+                    setBackupPolicy((current) => ({ ...current, dayOfMonth: Number(e.target.value) }))
+                  }
+                  className="w-full rounded-lg border border-slate-800 bg-slate-900 p-3 text-sm text-white outline-none focus:border-blue-500"
+                />
+              ) : backupPolicy.frequencyUnit === "HOURLY" ? (
+                <input
+                  type="number"
+                  min={0}
+                  max={59}
+                  value={backupPolicy.runMinute}
+                  onChange={(e: any) =>
+                    setBackupPolicy((current) => ({ ...current, runMinute: Number(e.target.value) }))
+                  }
+                  className="w-full rounded-lg border border-slate-800 bg-slate-900 p-3 text-sm text-white outline-none focus:border-blue-500"
+                />
+              ) : (
+                <input
+                  type="time"
+                  value={formatTimeInput(backupPolicy.runHour, backupPolicy.runMinute)}
+                  onChange={(e: any) => {
+                    const [hour, minute] = String(e.target.value || "00:00").split(":").map((part) => Number(part));
+                    setBackupPolicy((current) => ({
+                      ...current,
+                      runHour: Number.isFinite(hour) ? hour : 0,
+                      runMinute: Number.isFinite(minute) ? minute : 0,
+                    }));
+                  }}
+                  className="w-full rounded-lg border border-slate-800 bg-slate-900 p-3 text-sm text-white outline-none focus:border-blue-500"
+                />
+              )}
+            </label>
+
+            <div className="space-y-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Status</span>
+              <label className="flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900 p-3 text-sm text-white">
+                <input
+                  type="checkbox"
+                  checked={backupPolicy.enabled}
+                  onChange={(e: any) =>
+                    setBackupPolicy((current) => ({ ...current, enabled: Boolean(e.target.checked) }))
+                  }
+                />
+                Enable scheduled backups
+              </label>
+            </div>
+          </div>
+
+          {backupPolicy.frequencyUnit === "MONTHLY" ? (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr,220px]">
+              <div className="text-xs text-slate-500">
+                Monthly schedule runs every {backupPolicy.frequencyInterval} month(s) on day {backupPolicy.dayOfMonth}.
+              </div>
+              <input
+                type="time"
+                value={formatTimeInput(backupPolicy.runHour, backupPolicy.runMinute)}
+                onChange={(e: any) => {
+                  const [hour, minute] = String(e.target.value || "00:00").split(":").map((part) => Number(part));
+                  setBackupPolicy((current) => ({
+                    ...current,
+                    runHour: Number.isFinite(hour) ? hour : 0,
+                    runMinute: Number.isFinite(minute) ? minute : 0,
+                  }));
+                }}
+                className="w-full rounded-lg border border-slate-800 bg-slate-900 p-3 text-sm text-white outline-none focus:border-blue-500"
+              />
+            </div>
+          ) : null}
+
+          <div className="flex flex-col gap-2 text-xs text-slate-500">
+            <span>Time zone: {backupPolicy.timeZone || getBrowserTimeZone()}</span>
+            <span>
+              Last run: {backupPolicy.lastRunAt
+                ? new Date(backupPolicy.lastRunAt).toLocaleString(undefined, {
+                    timeZone: backupPolicy.timeZone || getBrowserTimeZone(),
+                  })
+                : "Never"}
+            </span>
+            <span>
+              Next run: {backupPolicy.nextRunAt
+                ? new Date(backupPolicy.nextRunAt).toLocaleString(undefined, {
+                    timeZone: backupPolicy.timeZone || getBrowserTimeZone(),
+                  })
+                : "Not scheduled"}
+            </span>
+          </div>
+
+          <div className="flex justify-end">
+            <button
+              onClick={() => void handleSaveBackupPolicy()}
+              disabled={backupPolicySaving}
+              className="inline-flex items-center gap-2 rounded-lg bg-slate-800 px-4 py-2 text-sm font-bold text-white border border-slate-700 disabled:opacity-60"
+            >
+              {backupPolicySaving ? <Loader2 size={14} className="animate-spin" /> : null}
+              {backupPolicySaving ? "Saving..." : "Save Backup Policy"}
+            </button>
+          </div>
 
           <div className="overflow-x-auto">
             <table className="w-full text-left">

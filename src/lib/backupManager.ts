@@ -8,6 +8,10 @@ export type BackupEntry = {
   modifiedAt: string;
 };
 
+type CreateBackupOptions = {
+  retentionCount?: number;
+};
+
 const BACKUP_FILENAME_PATTERN = /^elitgrid-.*\.dump$/;
 
 const getBackupDir = () => process.env.BACKUP_DIR || path.join(process.cwd(), "backups");
@@ -87,7 +91,20 @@ export const BackupManager = {
     return files.sort((a, b) => new Date(b.modifiedAt).getTime() - new Date(a.modifiedAt).getTime());
   },
 
-  async createBackup() {
+  async pruneToRetentionCount(retentionCount: number) {
+    if (!Number.isInteger(retentionCount) || retentionCount < 1) {
+      return [];
+    }
+
+    const backups = await this.listBackups();
+    const toDelete = backups.slice(retentionCount);
+    await Promise.all(
+      toDelete.map((backup) => fs.unlink(path.join(getBackupDir(), backup.filename)))
+    );
+    return toDelete;
+  },
+
+  async createBackup(options: CreateBackupOptions = {}) {
     const backupDir = await ensureBackupDir();
     const databaseUrl = buildDatabaseUrl();
     const dbName = new URL(databaseUrl).pathname.replace(/^\//, "") || "elitgrid_db";
@@ -103,6 +120,9 @@ export const BackupManager = {
     ]);
 
     const stat = await fs.stat(outputPath);
+    if (options.retentionCount) {
+      await this.pruneToRetentionCount(options.retentionCount);
+    }
     return {
       filename,
       size: stat.size,

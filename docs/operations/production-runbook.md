@@ -57,6 +57,20 @@ Admin UI path:
 - open `System Settings`
 - use the `Backup & Restore` section
 - Admins can create, download, refresh, and restore local database backups from the browser
+- Admins can also configure backup retention and backup frequency from the same panel
+
+Backup policy fields:
+
+- `Keep Last`: number of backup files to retain
+- `Frequency Unit`: `Hour`, `Day`, or `Month`
+- `Every`: interval count
+- `Run Time`: the scheduled local wall-clock time
+
+Timezone behavior:
+
+- scheduled times are timezone-aware
+- the saved schedule uses the admin/browser timezone at the moment the policy is saved
+- for example, `00:30` saved in `Asia/Jakarta` is scheduled as `00:30 WIB`, not `00:30 UTC`
 
 Important:
 
@@ -79,6 +93,8 @@ BACKUP_RETENTION_DAYS=14 ./scripts/prune-backups.sh
 Scheduled Compose backups write to `./backups` and prune files after `BACKUP_RETENTION_DAYS`.
 
 The app container also mounts `./backups`, so UI-created backups and script-created backups are operating on the same local backup directory.
+
+When the Admin backup policy is enabled, app-driven scheduled backups use count-based retention from the UI policy, while the optional Compose backup profile still uses its own environment-based interval/retention loop.
 
 Production operators should copy backup files to off-host storage and protect them as sensitive data.
 

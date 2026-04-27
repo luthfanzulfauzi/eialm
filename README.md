@@ -190,6 +190,16 @@ The UI supports:
 - listing available local backup files
 - downloading a backup file
 - restoring a selected backup back into the active database
+- configuring scheduled backup retention and frequency
+
+Backup policy settings in the UI now support:
+
+- keeping the last `N` backup files
+- frequency by `hour`, `day`, or `month`
+- intervals such as every `1 day`
+- scheduled run times such as `00:30`
+
+Scheduled backup times are timezone-aware and are saved using the admin/browser timezone active when the policy is saved.
 
 Restore from the UI is Admin-only and intentionally destructive to current database contents, so use it carefully.
 
@@ -214,6 +224,8 @@ Run scheduled local backups with retention pruning through the optional backup p
 ```bash
 docker compose --profile backup up -d
 ```
+
+The application also has an Admin-only backup policy in `System Settings -> Backup & Restore`. When enabled, the app checks for due scheduled backups during healthcheck-driven runtime activity and creates the next due backup using the saved retention/frequency policy.
 
 Validate that a backup can be restored without replacing production data:
 
