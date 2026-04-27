@@ -1,0 +1,3 @@
+id,name,key,licenseFile,poSiSoNumber,expiryDate,assetSerialNumber,productCodes
+,Windows Server 2025 Datacenter,AAAA-BBBB-CCCC-DDDD,windows-server-2025.lic,PO-2026-001,2027-12-31,SRV-001,APP-CORE|APP-EDGE
+,VMware vSphere Standard,,vmware-vsphere.lic,SO-2026-014,2026-11-30,,APP-CORE

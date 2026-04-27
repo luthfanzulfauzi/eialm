@@ -7,6 +7,7 @@ import {
   AlertCircle,
   CheckCircle2,
   Clock3,
+  Download,
   KeyRound,
   Loader2,
   Pencil,
@@ -14,6 +15,7 @@ import {
   Search,
   Trash2,
   Unplug,
+  Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -69,6 +71,13 @@ type LicenseFormState = {
   productIds: string[];
 };
 
+type ImportResult = {
+  created: number;
+  updated: number;
+  failed: number;
+  errors?: Array<{ row: number; error: string }>;
+};
+
 const emptyForm: LicenseFormState = {
   name: "",
   key: "",
@@ -115,10 +124,14 @@ export default function LicensePage() {
   const [filter, setFilter] = useState<"all" | "active" | "expiring" | "expired" | "unassigned">("all");
   const [search, setSearch] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [editingLicense, setEditingLicense] = useState<LicenseRecord | null>(null);
   const [form, setForm] = useState<LicenseFormState>(emptyForm);
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [assigningId, setAssigningId] = useState<string | null>(null);
 
@@ -235,6 +248,18 @@ export default function LicensePage() {
     setFormError(null);
   };
 
+  const openImportModal = () => {
+    setImportFile(null);
+    setImportResult(null);
+    setIsImportModalOpen(true);
+  };
+
+  const closeImportModal = () => {
+    setIsImportModalOpen(false);
+    setImportFile(null);
+    setImportResult(null);
+  };
+
   const handleSave = async (e: FormEvent) => {
     e.preventDefault();
     setFormError(null);
@@ -318,6 +343,63 @@ export default function LicensePage() {
     }
   };
 
+  const handleExport = async () => {
+    try {
+      const res = await fetch("/api/licenses/export");
+      if (!res.ok) {
+        const payload = await res.text().catch(() => "");
+        throw new Error(payload || "Failed to export licenses");
+      }
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const disposition = res.headers.get("Content-Disposition");
+      const filenameMatch = disposition?.match(/filename="(.+)"/);
+      link.href = url;
+      link.download = filenameMatch?.[1] || "licenses.csv";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (exportError) {
+      toast.error(exportError instanceof Error ? exportError.message : "Failed to export licenses");
+    }
+  };
+
+  const handleImport = async () => {
+    if (!importFile) return;
+
+    try {
+      setImporting(true);
+      setImportResult(null);
+
+      const formData = new FormData();
+      formData.append("file", importFile);
+
+      const res = await fetch("/api/licenses/import", {
+        method: "POST",
+        body: formData,
+      });
+      const payload = await res.json().catch(() => ({} as any));
+      if (!res.ok) {
+        throw new Error(payload?.error || "Failed to import licenses");
+      }
+
+      setImportResult(payload as ImportResult);
+      await fetchLicenses(true);
+      toast.success(
+        payload.failed > 0
+          ? `Imported licenses with ${payload.failed} failed row(s).`
+          : `Imported licenses. ${payload.created} created, ${payload.updated} updated.`
+      );
+    } catch (importError) {
+      toast.error(importError instanceof Error ? importError.message : "Failed to import licenses");
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const stats = [
     {
       label: "Total Licenses",
@@ -358,6 +440,16 @@ export default function LicensePage() {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-3">
+            <Button variant="outline" onClick={() => void handleExport()} disabled={loading}>
+              <Download size={16} className="mr-2" />
+              Export
+            </Button>
+            {canManage && (
+              <Button variant="outline" onClick={openImportModal}>
+                <Upload size={16} className="mr-2" />
+                Import
+              </Button>
+            )}
             <Button variant="outline" onClick={() => void fetchLicenses(true)} disabled={refreshing || loading}>
               {refreshing ? <Loader2 size={16} className="mr-2 animate-spin" /> : null}
               Refresh
@@ -752,6 +844,53 @@ export default function LicensePage() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      <Modal isOpen={isImportModalOpen} onClose={closeImportModal} title="Import Licenses (CSV)">
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <a
+              href="/samples/licenses-import-sample.csv"
+              download
+              className="text-sm text-blue-400 hover:text-blue-300"
+            >
+              Download sample CSV
+            </a>
+          </div>
+
+          <input
+            type="file"
+            accept=".csv,text/csv"
+            onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+            className="w-full rounded-lg border border-slate-800 bg-[#0f1218] p-2.5 text-sm text-white outline-none transition-all focus:border-blue-500"
+          />
+
+          {importResult ? (
+            <div className="space-y-2 rounded-lg border border-slate-800 bg-slate-950/20 p-3 text-sm text-slate-200">
+              <div>
+                Imported: {importResult.created + importResult.updated} (created {importResult.created}, updated {importResult.updated})
+              </div>
+              {importResult.failed ? <div className="text-red-300">Failed rows: {importResult.failed}</div> : null}
+              {importResult.errors?.length ? (
+                <div className="max-h-40 space-y-1 overflow-y-auto text-xs text-red-200">
+                  {importResult.errors.slice(0, 10).map((entry) => (
+                    <div key={`${entry.row}-${entry.error}`}>Row {entry.row}: {entry.error}</div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          <div className="flex justify-end gap-3">
+            <Button type="button" variant="outline" onClick={closeImportModal} disabled={importing}>
+              Close
+            </Button>
+            <Button type="button" onClick={() => void handleImport()} disabled={!importFile || importing}>
+              {importing ? <Loader2 size={16} className="mr-2 animate-spin" /> : null}
+              {importing ? "Importing..." : "Import CSV"}
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );
