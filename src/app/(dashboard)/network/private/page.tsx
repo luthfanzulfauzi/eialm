@@ -23,6 +23,7 @@ type PrivateIp = {
   id: string;
   address: string;
   status: IPStatus;
+  privateRangeId?: string | null;
   assignmentTargetType: TargetType | null;
   assignmentTargetLabel: string | null;
   asset: AssetOption | null;
@@ -135,6 +136,7 @@ export default function PrivateIPPage() {
   const [rangeNetwork, setRangeNetwork] = useState("");
   const [rangePrefix, setRangePrefix] = useState("24");
   const [activeIp, setActiveIp] = useState<PrivateIp | null>(null);
+  const [selectedRangeId, setSelectedRangeId] = useState<string | null>(null);
   const [manageForm, setManageForm] = useState<StatusFormState>(getInitialFormState());
   const [submitting, setSubmitting] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -176,10 +178,10 @@ export default function PrivateIPPage() {
 
   const filteredIps = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    if (!query) return ips;
-
-    return ips.filter((ip) =>
-      [
+    return ips.filter((ip) => {
+      if (selectedRangeId && ip.privateRangeId !== selectedRangeId) return false;
+      if (!query) return true;
+      return [
         ip.address,
         ip.status,
         ip.assignmentTargetType,
@@ -189,9 +191,20 @@ export default function PrivateIPPage() {
         ip.asset?.category,
       ]
         .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(query))
-    );
-  }, [ips, searchQuery]);
+        .some((value) => String(value).toLowerCase().includes(query));
+    });
+  }, [ips, searchQuery, selectedRangeId]);
+
+  const selectedRange = useMemo(
+    () => ranges.find((range) => range.id === selectedRangeId) || null,
+    [ranges, selectedRangeId]
+  );
+
+  useEffect(() => {
+    if (selectedRangeId && !ranges.some((range) => range.id === selectedRangeId)) {
+      setSelectedRangeId(null);
+    }
+  }, [ranges, selectedRangeId]);
 
   const resetRangeForm = () => {
     setRangeFormMode("create");
@@ -630,9 +643,14 @@ export default function PrivateIPPage() {
           <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900/30 px-4 py-4">
             <div>
               <div className="text-sm font-bold text-white">Private Address Inventory</div>
-              <div className="text-xs text-slate-500">{filteredIps.length} visible addresses</div>
+              <div className="text-xs text-slate-500">
+                {filteredIps.length} visible addresses
+                {selectedRange ? ` • Filtered by ${selectedRange.cidr}` : ""}
+              </div>
             </div>
-            <div className="text-xs text-slate-500">Assigned and reserved IPs require a destination target.</div>
+            <div className="text-xs text-slate-500">
+              {selectedRange ? "Showing the selected managed range only." : "Assigned and reserved IPs require a destination target."}
+            </div>
           </div>
 
           <div className="divide-y divide-slate-800">
@@ -712,9 +730,32 @@ export default function PrivateIPPage() {
             </div>
 
             <div className="mt-4 space-y-3">
+              <button
+                type="button"
+                onClick={() => setSelectedRangeId(null)}
+                className={cn(
+                  "w-full rounded-xl border px-3 py-3 text-left transition-colors",
+                  selectedRangeId === null
+                    ? "border-emerald-500 bg-emerald-500/10"
+                    : "border-slate-800 bg-slate-900/30 hover:bg-slate-900/50"
+                )}
+              >
+                <div className="text-sm font-bold text-white">All inventory</div>
+                <div className="mt-1 text-xs text-slate-500">Show every private IP, including unmanaged single addresses.</div>
+              </button>
               {ranges.length > 0 ? (
                 ranges.map((range) => (
-                  <div key={range.id} className="rounded-xl border border-slate-800 bg-slate-900/40 p-3">
+                  <button
+                    key={range.id}
+                    type="button"
+                    onClick={() => setSelectedRangeId((current) => (current === range.id ? null : range.id))}
+                    className={cn(
+                      "w-full rounded-xl border bg-slate-900/40 p-3 text-left transition-colors",
+                      selectedRangeId === range.id
+                        ? "border-emerald-500 bg-emerald-500/10"
+                        : "border-slate-800 hover:bg-slate-900/60"
+                    )}
+                  >
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <div className="text-sm font-bold text-white">{range.cidr}</div>
@@ -731,14 +772,22 @@ export default function PrivateIPPage() {
                       {canManage && (
                         <div className="flex gap-2">
                           <button
-                            onClick={() => openEditRangeModal(range)}
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openEditRangeModal(range);
+                            }}
                             className="rounded-lg border border-slate-700 p-2 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white"
                             title="Edit private range"
                           >
                             <Edit3 size={15} />
                           </button>
                           <button
-                            onClick={() => void handleDeleteRange(range)}
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void handleDeleteRange(range);
+                            }}
                             className="rounded-lg border border-red-500/20 p-2 text-red-300 transition-colors hover:bg-red-500/10 hover:text-red-200"
                             title="Delete private range"
                           >
@@ -747,7 +796,7 @@ export default function PrivateIPPage() {
                         </div>
                       )}
                     </div>
-                  </div>
+                  </button>
                 ))
               ) : (
                 <div className="rounded-xl border border-dashed border-slate-800 px-4 py-8 text-center text-sm text-slate-500">
