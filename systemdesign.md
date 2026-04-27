@@ -130,7 +130,7 @@ prisma/
 - `GET /api/health` is unauthenticated for container, proxy, and uptime probes; it verifies PostgreSQL reachability and returns `503` on database failure.
 - The optional `proxy` Compose profile runs Nginx in front of the app for direct DNS or upstream reverse-proxy deployments.
 - The app and Nginx apply baseline security headers for content type sniffing, framing, referrer policy, and browser permissions.
-- Cloudflare Tunnel can target the app service directly over `http://app:3000`; `deploy/cloudflare-tunnel.example.yml` documents the expected ingress shape.
+- Cloudflare Tunnel can target the app service directly over `http://app:3000`; `deploy/cloudflare-tunnel.example.yml` documents the expected ingress shape. The tunnel runs as an optional Compose-profile service and may remain active independently from the main app/database containers if that profile was started separately.
 - `GET /api/metrics` emits Prometheus text format when called with `OBSERVABILITY_TOKEN`.
 - PostgreSQL data persists in the `postgres-data` named volume. Logical backup, scheduled backup, pruning, restore, and restore-drill helpers live in `scripts/`, and Admin-only browser operations for create/download/restore plus retention/frequency scheduling now exist under `System Settings`.
 - Dashboard server rendering is explicitly dynamic so authenticated database-backed pages are not treated as static build artifacts.
