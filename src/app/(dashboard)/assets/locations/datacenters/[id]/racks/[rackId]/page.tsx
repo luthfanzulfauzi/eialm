@@ -123,6 +123,8 @@ export default function RackLayoutDesignerPage() {
   const [showConfirmRemove, setShowConfirmRemove] = useState(false);
   const [showQuickPlace, setShowQuickPlace] = useState(false);
   const [quickPlaceSearch, setQuickPlaceSearch] = useState("");
+  const [quickPlaceSubmitting, setQuickPlaceSubmitting] = useState(false);
+  const [quickPlaceError, setQuickPlaceError] = useState<string | null>(null);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [quickAddSubmitting, setQuickAddSubmitting] = useState(false);
   const [quickAddError, setQuickAddError] = useState<string | null>(null);
@@ -193,10 +195,14 @@ export default function RackLayoutDesignerPage() {
     if (!data || !selectedAssetId) return;
     const a = data.assetsAtLocation.find((x) => x.id === selectedAssetId);
     if (!a) return;
+    if (showQuickPlace) {
+      setPlacementSize(a.rackUnitSize ?? 1);
+      return;
+    }
     setPlacementStart(a.rackUnitStart ?? 1);
     setPlacementSize(a.rackUnitSize ?? 1);
     setPlacementFace((a.rackFace ?? "FRONT") as RackFace);
-  }, [data, selectedAssetId]);
+  }, [data, selectedAssetId, showQuickPlace]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -359,6 +365,7 @@ export default function RackLayoutDesignerPage() {
     setPlacementStart(clickedU);
     setPlacementFace(face);
     setQuickPlaceSearch("");
+    setQuickPlaceError(null);
     setShowQuickPlace(true);
   };
 
@@ -752,6 +759,7 @@ export default function RackLayoutDesignerPage() {
                         onClick={() => {
                           setPlacementStart(u);
                           setQuickPlaceSearch("");
+                          setQuickPlaceError(null);
                           setShowQuickPlace(true);
                         }}
                       >
@@ -963,6 +971,8 @@ export default function RackLayoutDesignerPage() {
         isOpen={showQuickPlace}
         onClose={() => {
           setShowQuickPlace(false);
+          setQuickPlaceSubmitting(false);
+          setQuickPlaceError(null);
           resetQuickAddForm();
         }}
         title={`Place Asset at U${placementStart}`}
@@ -1009,6 +1019,12 @@ export default function RackLayoutDesignerPage() {
             onChange={(e) => setQuickPlaceSearch(e.target.value)}
             placeholder="Search assets..."
           />
+
+          {quickPlaceError && (
+            <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+              {quickPlaceError}
+            </div>
+          )}
 
           <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-3 space-y-3">
             <div className="flex items-center justify-between gap-3">
@@ -1192,6 +1208,8 @@ export default function RackLayoutDesignerPage() {
               variant="outline"
               onClick={() => {
                 setShowQuickPlace(false);
+                setQuickPlaceSubmitting(false);
+                setQuickPlaceError(null);
                 resetQuickAddForm();
               }}
               className="flex-1"
@@ -1201,6 +1219,8 @@ export default function RackLayoutDesignerPage() {
             <Button
               onClick={async () => {
                 if (!selectedAssetId) return;
+                setQuickPlaceSubmitting(true);
+                setQuickPlaceError(null);
                 try {
                   await assignAsset({
                     assetId: selectedAssetId,
@@ -1209,13 +1229,27 @@ export default function RackLayoutDesignerPage() {
                     face: placementFace,
                   });
                   setShowQuickPlace(false);
+                  setQuickPlaceSubmitting(false);
+                  setQuickPlaceError(null);
+                  resetQuickAddForm();
                   await fetchRack();
-                } catch {}
+                } catch (error: any) {
+                  setQuickPlaceError(error?.message || "Failed to place asset.");
+                  setQuickPlaceSubmitting(false);
+                }
               }}
-              disabled={!selectedAssetId}
+              disabled={!selectedAssetId || quickPlaceSubmitting}
               className="flex-1"
             >
-              <Save size={16} className="mr-2" /> Place
+              {quickPlaceSubmitting ? (
+                <>
+                  <Loader2 className="animate-spin mr-2" size={16} /> Placing...
+                </>
+              ) : (
+                <>
+                  <Save size={16} className="mr-2" /> Place
+                </>
+              )}
             </Button>
           </div>
         </div>
