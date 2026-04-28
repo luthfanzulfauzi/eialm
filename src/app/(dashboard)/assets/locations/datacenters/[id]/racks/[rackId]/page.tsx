@@ -7,7 +7,7 @@ import { ArrowLeft, Box, Layers, Loader2, Plus, Save, Trash2, X } from "lucide-r
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/Modal";
-import { formatAssetSerialNumber } from "@/lib/utils";
+import { ASSET_SERIAL_NUMBER_NOT_AVAILABLE, formatAssetSerialNumber } from "@/lib/utils";
 import { useRole } from "@/hooks/useRole";
 
 type RackFace = "FRONT" | "BACK" | "BOTH";
@@ -65,6 +65,9 @@ const faceLabel = (f: RackFace) => {
 const rackAssetSecondaryLabel = (serialNumber: string, ip?: string | null) =>
   ip ? `IP: ${ip}` : formatAssetSerialNumber(serialNumber);
 
+const rackGridBackground =
+  "repeating-linear-gradient(to bottom, rgba(255,255,255,0.24) 0px, rgba(255,255,255,0.24) 2px, transparent 2px, transparent 20px)";
+
 const getRackAssetCardLayout = (rawHeight: number) => {
   const cardHeight = Math.max(rawHeight - 2, unitPx - 2);
   const compact = cardHeight <= 24;
@@ -108,7 +111,7 @@ export default function RackLayoutDesignerPage() {
 
   const [viewMode, setViewMode] = useState<"FRONT" | "BACK" | "BOTH">("BOTH");
   const [assetSearch, setAssetSearch] = useState("");
-  const [assetScope, setAssetScope] = useState<"READY" | "THIS_RACK" | "OTHER_RACKS" | "ALL">("READY");
+  const [assetScope, setAssetScope] = useState<"THIS_RACK" | "OTHER_RACKS" | "ALL">("THIS_RACK");
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
   const [placementStart, setPlacementStart] = useState<number>(1);
   const [placementSize, setPlacementSize] = useState<number>(1);
@@ -120,6 +123,14 @@ export default function RackLayoutDesignerPage() {
   const [showConfirmRemove, setShowConfirmRemove] = useState(false);
   const [showQuickPlace, setShowQuickPlace] = useState(false);
   const [quickPlaceSearch, setQuickPlaceSearch] = useState("");
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
+  const [quickAddSubmitting, setQuickAddSubmitting] = useState(false);
+  const [quickAddError, setQuickAddError] = useState<string | null>(null);
+  const [quickAddName, setQuickAddName] = useState("");
+  const [quickAddSerialNumber, setQuickAddSerialNumber] = useState("");
+  const [quickAddSerialNotAvailable, setQuickAddSerialNotAvailable] = useState(false);
+  const [quickAddCategory, setQuickAddCategory] = useState("Network Device");
+  const [quickAddStatus, setQuickAddStatus] = useState("ACTIVE");
   const [dragHover, setDragHover] = useState<{ face: "FRONT" | "BACK"; u: number } | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [hiddenIssueMessages, setHiddenIssueMessages] = useState<string[]>([]);
@@ -199,7 +210,6 @@ export default function RackLayoutDesignerPage() {
     if (!data) return [];
     const q = assetSearch.trim().toLowerCase();
     return data.assetsAtLocation.filter((a) => {
-      if (assetScope === "READY" && a.rackId) return false;
       if (assetScope === "THIS_RACK" && a.rackId !== rackId) return false;
       if (assetScope === "OTHER_RACKS" && (!a.rackId || a.rackId === rackId)) return false;
       if (!q) return true;
@@ -251,6 +261,17 @@ export default function RackLayoutDesignerPage() {
       visibleIssues.forEach((issue) => next.add(issue.message));
       return Array.from(next);
     });
+  };
+
+  const resetQuickAddForm = () => {
+    setShowQuickAdd(false);
+    setQuickAddSubmitting(false);
+    setQuickAddError(null);
+    setQuickAddName("");
+    setQuickAddSerialNumber("");
+    setQuickAddSerialNotAvailable(false);
+    setQuickAddCategory("Network Device");
+    setQuickAddStatus("ACTIVE");
   };
 
   const assignAsset = async (params: { assetId: string; startU: number; sizeU: number; face: RackFace }) => {
@@ -337,10 +358,8 @@ export default function RackLayoutDesignerPage() {
     const clickedU = computeUFromEvent(e, rect.top, data.rack.totalUnits);
     setPlacementStart(clickedU);
     setPlacementFace(face);
-    if (!selectedAssetId) {
-      setQuickPlaceSearch("");
-      setShowQuickPlace(true);
-    }
+    setQuickPlaceSearch("");
+    setShowQuickPlace(true);
   };
 
   const handleDragStart = (asset: RackAsset) => {
@@ -506,8 +525,8 @@ export default function RackLayoutDesignerPage() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-1 space-y-4">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(280px,0.8fr)_minmax(0,1.9fr)]">
+        <div className="space-y-4">
           <div className="bg-[#111620] border border-slate-800 rounded-2xl p-5 space-y-4">
             <div className="flex items-center justify-between">
               <div className="text-white font-bold">Asset Inventory</div>
@@ -516,9 +535,8 @@ export default function RackLayoutDesignerPage() {
 
             <div className="grid grid-cols-2 gap-2">
               {[
-                ["READY", "Ready"],
                 ["THIS_RACK", "This Rack"],
-                ["OTHER_RACKS", "Other Racks"],
+                ["OTHER_RACKS", "Other Rack"],
                 ["ALL", "All"],
               ].map(([scope, label]) => (
                 <Button
@@ -701,7 +719,7 @@ export default function RackLayoutDesignerPage() {
           </div>
         </div>
 
-        <div className="lg:col-span-2">
+        <div className="min-w-0">
           <div className="bg-[#111620] border border-slate-800 rounded-2xl p-5">
             <div className="flex items-center justify-between mb-4">
               <div className="text-white font-bold">Rack Elevation</div>
@@ -720,8 +738,8 @@ export default function RackLayoutDesignerPage() {
               </div>
             </div>
 
-            <div className="flex gap-3">
-              <div className={["w-10 text-slate-500 text-xs select-none", viewMode === "BOTH" ? "pt-6" : ""].join(" ")}>
+            <div className="flex gap-4">
+              <div className={["w-12 text-slate-400 text-sm font-semibold select-none", viewMode === "BOTH" ? "pt-6" : ""].join(" ")}>
                 <div style={{ height: data.rack.totalUnits * unitPx }} className="relative">
                   {Array.from({ length: data.rack.totalUnits }).map((_, idx) => {
                     const u = data.rack.totalUnits - idx;
@@ -729,14 +747,12 @@ export default function RackLayoutDesignerPage() {
                       <button
                         key={u}
                         type="button"
-                        className="w-full flex items-center justify-end pr-1 hover:text-white"
+                        className="w-full flex items-center justify-end pr-2 text-slate-400 transition-colors hover:text-white"
                         style={{ height: unitPx }}
                         onClick={() => {
                           setPlacementStart(u);
-                          if (!selectedAssetId) {
-                            setQuickPlaceSearch("");
-                            setShowQuickPlace(true);
-                          }
+                          setQuickPlaceSearch("");
+                          setShowQuickPlace(true);
                         }}
                       >
                         {u.toString().padStart(2, "0")}
@@ -749,11 +765,10 @@ export default function RackLayoutDesignerPage() {
               <div className="flex-1 overflow-auto">
                 {viewMode !== "BOTH" ? (
                   <div
-                    className="relative rounded-2xl border border-slate-800 bg-[#0f1218]"
+                    className="relative rounded-2xl border border-slate-700 bg-[#0f1218] shadow-[inset_0_1px_0_rgba(148,163,184,0.06)]"
                     style={{
                       height: data.rack.totalUnits * unitPx,
-                      backgroundImage:
-                        "repeating-linear-gradient(to bottom, rgba(148,163,184,0.08) 0px, rgba(148,163,184,0.08) 1px, transparent 1px, transparent 20px)",
+                      backgroundImage: rackGridBackground,
                     }}
                     onClick={(e) => handleRackClick(viewMode, e)}
                     onDragOver={(e) => handleDragOver(viewMode, e)}
@@ -795,13 +810,17 @@ export default function RackLayoutDesignerPage() {
                             className={[
                               "absolute left-2 right-2 overflow-hidden rounded-xl border text-left",
                               selectedAssetId === (a as any).id
-                                ? "border-blue-500 bg-blue-600/20"
-                                : "border-slate-700 bg-slate-900/60 hover:bg-slate-900/80",
+                                ? "border-emerald-300 shadow-[0_0_0_1px_rgba(110,231,183,0.28)]"
+                                : "border-emerald-400/45",
                             ].join(" ")}
                             style={{
                               top: top + 1,
                               height: layout.cardHeight,
                               padding: layout.padding,
+                              backgroundColor:
+                                selectedAssetId === (a as any).id
+                                  ? "rgba(74, 222, 128, 0.26)"
+                                  : "rgba(74, 222, 128, 0.18)",
                             }}
                           >
                             <div className={layout.contentClassName} style={layout.contentStyle}>
@@ -809,36 +828,35 @@ export default function RackLayoutDesignerPage() {
                                 {(a as any).name}
                               </div>
                               {layout.compact ? (
-                                <div className="truncate text-slate-400" style={layout.secondaryStyle}>
-                                  U{(a as any).start}
-                                </div>
-                              ) : (
-                                <div className="truncate text-slate-400" style={layout.secondaryStyle}>
-                                  {rackAssetSecondaryLabel((a as any).serialNumber, ip)} • U{(a as any).start}-U{(a as any).end} • {faceLabel(aFace)}
-                                </div>
-                              )}
+                                  <div className="truncate text-emerald-100/80" style={layout.secondaryStyle}>
+                                    U{(a as any).start}
+                                  </div>
+                                ) : (
+                                  <div className="truncate text-emerald-100/80" style={layout.secondaryStyle}>
+                                    {rackAssetSecondaryLabel((a as any).serialNumber, ip)} • U{(a as any).start}-U{(a as any).end} • {faceLabel(aFace)}
+                                  </div>
+                                )}
                             </div>
                           </button>
                         );
                       })}
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-4">
                     {(["FRONT", "BACK"] as const).map((face) => (
                       <div key={face} className="space-y-2 pt-6">
                         <div
-                          className="relative rounded-2xl border border-slate-800 bg-[#0f1218]"
+                          className="relative rounded-2xl border border-slate-700 bg-[#0f1218] shadow-[inset_0_1px_0_rgba(148,163,184,0.06)]"
                           style={{
                             height: data.rack.totalUnits * unitPx,
-                            backgroundImage:
-                              "repeating-linear-gradient(to bottom, rgba(148,163,184,0.08) 0px, rgba(148,163,184,0.08) 1px, transparent 1px, transparent 20px)",
+                            backgroundImage: rackGridBackground,
                           }}
                           onClick={(e) => handleRackClick(face, e)}
                           onDragOver={(e) => handleDragOver(face, e)}
                           onDragLeave={handleDragLeave}
                           onDrop={(e) => handleDrop(face, e)}
                         >
-                          <div className="pointer-events-none absolute left-4 top-[-22px] text-slate-400 text-xs font-bold">
+                          <div className="pointer-events-none absolute left-4 top-[-22px] text-slate-300 text-sm font-bold tracking-wide">
                             {faceLabel(face)}
                           </div>
                           {dragHover && dragHover.face === face && (
@@ -876,13 +894,17 @@ export default function RackLayoutDesignerPage() {
                                   className={[
                                     "absolute left-2 right-2 overflow-hidden rounded-xl border text-left",
                                     selectedAssetId === (a as any).id
-                                      ? "border-blue-500 bg-blue-600/20"
-                                      : "border-slate-700 bg-slate-900/60 hover:bg-slate-900/80",
+                                      ? "border-emerald-300 shadow-[0_0_0_1px_rgba(110,231,183,0.28)]"
+                                      : "border-emerald-400/45",
                                   ].join(" ")}
                                   style={{
                                     top: top + 1,
                                     height: layout.cardHeight,
                                     padding: layout.padding,
+                                    backgroundColor:
+                                      selectedAssetId === (a as any).id
+                                        ? "rgba(74, 222, 128, 0.26)"
+                                        : "rgba(74, 222, 128, 0.18)",
                                   }}
                                 >
                                   <div className={layout.contentClassName} style={layout.contentStyle}>
@@ -890,11 +912,11 @@ export default function RackLayoutDesignerPage() {
                                       {(a as any).name}
                                     </div>
                                     {layout.compact ? (
-                                      <div className="truncate text-slate-400" style={layout.secondaryStyle}>
+                                      <div className="truncate text-emerald-100/80" style={layout.secondaryStyle}>
                                         U{(a as any).start}
                                       </div>
                                     ) : (
-                                      <div className="truncate text-slate-400" style={layout.secondaryStyle}>
+                                      <div className="truncate text-emerald-100/80" style={layout.secondaryStyle}>
                                         {rackAssetSecondaryLabel((a as any).serialNumber, ip)} • U{(a as any).start}-U{(a as any).end} • {faceLabel(aFace)}
                                       </div>
                                     )}
@@ -939,7 +961,10 @@ export default function RackLayoutDesignerPage() {
 
       <Modal
         isOpen={showQuickPlace}
-        onClose={() => setShowQuickPlace(false)}
+        onClose={() => {
+          setShowQuickPlace(false);
+          resetQuickAddForm();
+        }}
         title={`Place Asset at U${placementStart}`}
       >
         <div className="py-4 space-y-4">
@@ -985,6 +1010,163 @@ export default function RackLayoutDesignerPage() {
             placeholder="Search assets..."
           />
 
+          <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-3 space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold text-white">Quick Add Asset</div>
+                <div className="text-xs text-slate-400">Create and place a new asset directly into this rack slot.</div>
+              </div>
+              <Button
+                type="button"
+                variant={showQuickAdd ? "outline" : "primary"}
+                size="sm"
+                onClick={() => {
+                  setShowQuickAdd((current) => !current);
+                  setQuickAddError(null);
+                }}
+              >
+                {showQuickAdd ? "Hide Quick Add" : "Quick Add"}
+              </Button>
+            </div>
+
+            {showQuickAdd && (
+              <div className="space-y-3">
+                {quickAddError && (
+                  <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+                    {quickAddError}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <div className="space-y-1">
+                    <div className="text-xs text-slate-400">Asset Name</div>
+                    <Input
+                      value={quickAddName}
+                      onChange={(e) => setQuickAddName(e.target.value)}
+                      placeholder="e.g. Nexus 3064 (DCI-NSST-P02)"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="text-xs text-slate-400">Serial Number</div>
+                    <Input
+                      value={quickAddSerialNotAvailable ? ASSET_SERIAL_NUMBER_NOT_AVAILABLE : quickAddSerialNumber}
+                      onChange={(e) => setQuickAddSerialNumber(e.target.value)}
+                      placeholder="Serial Number"
+                      disabled={quickAddSerialNotAvailable}
+                    />
+                    <label className="flex items-center gap-2 text-[11px] text-slate-400">
+                      <input
+                        type="checkbox"
+                        checked={quickAddSerialNotAvailable}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setQuickAddSerialNotAvailable(checked);
+                          if (!checked) setQuickAddSerialNumber("");
+                        }}
+                        className="h-3.5 w-3.5 rounded border border-slate-700 bg-slate-900 text-blue-500 focus:ring-blue-500"
+                      />
+                      Serial number unavailable
+                    </label>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="text-xs text-slate-400">Category</div>
+                    <select
+                      value={quickAddCategory}
+                      onChange={(e) => setQuickAddCategory(e.target.value)}
+                      className="h-10 w-full rounded-lg border border-slate-800 bg-slate-900/50 px-3 text-sm text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50"
+                    >
+                      <option value="Server">Server</option>
+                      <option value="Network Device">Network Device</option>
+                      <option value="Cable">Cable</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="text-xs text-slate-400">Status</div>
+                    <select
+                      value={quickAddStatus}
+                      onChange={(e) => setQuickAddStatus(e.target.value)}
+                      className="h-10 w-full rounded-lg border border-slate-800 bg-slate-900/50 px-3 text-sm text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50"
+                    >
+                      {["PLAN", "PURCHASED", "INSTALLING", "ACTIVE", "MAINTENANCE", "BROKEN"].map((status) => (
+                        <option key={status} value={status}>
+                          {status}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex justify-end">
+                  <Button
+                    type="button"
+                    disabled={quickAddSubmitting}
+                    onClick={async () => {
+                      if (!quickAddName.trim()) {
+                        setQuickAddError("Asset name is required.");
+                        return;
+                      }
+
+                      const serialNumber = quickAddSerialNotAvailable
+                        ? ASSET_SERIAL_NUMBER_NOT_AVAILABLE
+                        : quickAddSerialNumber.trim();
+
+                      if (!serialNumber) {
+                        setQuickAddError("Serial number is required, or mark it as unavailable.");
+                        return;
+                      }
+
+                      setQuickAddSubmitting(true);
+                      setQuickAddError(null);
+                      try {
+                        const response = await fetch("/api/assets", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            name: quickAddName.trim(),
+                            serialNumber,
+                            category: quickAddCategory,
+                            status: quickAddStatus,
+                            locationId: data.rack.locationId,
+                            rackId: data.rack.id,
+                            rackFace: placementFace,
+                            rackUnitStart: placementStart,
+                            rackUnitSize: placementSize,
+                          }),
+                        });
+
+                        const payload = await response.json().catch(() => ({} as any));
+                        if (!response.ok) {
+                          setQuickAddError(payload?.error || "Failed to create asset.");
+                          return;
+                        }
+
+                        setSelectedAssetId(payload.id ?? null);
+                        setShowQuickPlace(false);
+                        resetQuickAddForm();
+                        await fetchRack();
+                      } catch {
+                        setQuickAddError("Failed to create asset.");
+                      } finally {
+                        setQuickAddSubmitting(false);
+                      }
+                    }}
+                  >
+                    {quickAddSubmitting ? (
+                      <>
+                        <Loader2 className="animate-spin mr-2" size={16} /> Creating...
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="mr-2" size={16} /> Create and Place
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="max-h-[420px] overflow-auto space-y-2 pr-1">
             {quickFilteredAssets.map((a) => {
               const isSelected = a.id === selectedAssetId;
@@ -1006,7 +1188,14 @@ export default function RackLayoutDesignerPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={() => setShowQuickPlace(false)} className="flex-1">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowQuickPlace(false);
+                resetQuickAddForm();
+              }}
+              className="flex-1"
+            >
               Cancel
             </Button>
             <Button
